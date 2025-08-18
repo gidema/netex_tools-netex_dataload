@@ -6,9 +6,12 @@ import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 
 import org.rutebanken.netex.model.CompositeFrame;
+import org.rutebanken.netex.model.GeneralFrame;
+import org.rutebanken.netex.model.General_VersionFrameStructure;
 import org.rutebanken.netex.model.Line;
 import org.rutebanken.netex.model.Line_VersionStructure;
 import org.rutebanken.netex.model.LinkSequence_VersionStructure;
+import org.rutebanken.netex.model.Network;
 import org.rutebanken.netex.model.PublicationDeliveryStructure;
 import org.rutebanken.netex.model.Quay;
 import org.rutebanken.netex.model.ResourceFrame;
@@ -30,10 +33,13 @@ import jakarta.xml.bind.JAXBException;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 import nl.gertjanidema.netex.dataload.dto.StNetexLineRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
+import nl.gertjanidema.netex.dataload.dto.StNetexNetworkRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnJourneyRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexProductCategoryRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexQuayRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexResponsibilitySetRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexResponsibleAreaRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPointRepository;
@@ -41,9 +47,11 @@ import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlaceRepository;
 import nl.gertjanidema.netex.dataload.processors.NetexDeliveryProcesser;
 import nl.gertjanidema.netex.dataload.processors.NetexLineProcessor;
+import nl.gertjanidema.netex.dataload.processors.NetexNetworkProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexPointOnRouteProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexProductCategoryProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexQuayProcessor;
+import nl.gertjanidema.netex.dataload.processors.NetexResponsibilitySetProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexRouteProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexScheduledStopPointProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexStopPlaceProcessor;
@@ -54,6 +62,9 @@ public class NetexFileProcessor {
 
     private PublicationDeliveryStructure delivery;
     private StNetexDelivery stDelivery;
+
+    @Inject
+    StNetexNetworkRepository networkRepository;
 
     @Inject
     StNetexQuayRepository quayRepository;
@@ -81,8 +92,11 @@ public class NetexFileProcessor {
     
     @Inject
     StNetexProductCategoryRepository productCategoryRepository;
+    
+    @Inject
+    StNetexResponsibilitySetRepository responsibilitySetRepository;
 
-    public StNetexDelivery processHeader(NetexFileInfo fileInfo) {
+    protected StNetexDelivery processHeader(NetexFileInfo fileInfo) {
         delivery = readFile(fileInfo.getCachedFile());
         stDelivery = NetexDeliveryProcesser.process(delivery, fileInfo);
         return stDelivery;
@@ -110,9 +124,31 @@ public class NetexFileProcessor {
             else if (commonFrame.getDeclaredType().equals(SiteFrame.class)) {
                 processSiteFrame((SiteFrame)commonFrame.getValue());
             }
+            else if (commonFrame.getDeclaredType().equals(GeneralFrame.class)) {
+                processGeneralFrame((GeneralFrame)commonFrame.getValue());
+            }
         });
     }
 
+    private void processGeneralFrame(GeneralFrame frame) {
+        frame.getMembers().getGeneralFrameMemberOrDataManagedObjectOrEntity_Entity().forEach(member -> {
+            if (member.getDeclaredType().isAssignableFrom(Network.class)) {
+                processNetwork((Network) member.getValue());
+            }
+        });
+    }
+
+    private void processNetwork(Network network) {
+        StNetexNetwork stNetwork;
+        try {
+            stNetwork = NetexNetworkProcessor.process(network);
+            stNetwork.setFileSetId(null);
+            networkRepository.save(stNetwork);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
     private void processResourceFrame(ResourceFrame frame) {
         if (frame.getTypesOfValue() != null) {
             frame.getTypesOfValue().getValueSetOrTypeOfValue().forEach(element -> {
@@ -120,6 +156,20 @@ public class NetexFileProcessor {
                     processProductCategory((TypeOfProductCategory)element.getValue());
                 }
             });
+        }
+        if (frame.getResponsibilitySets() != null) {
+            try {
+                for (var responsibilitySet :frame.getResponsibilitySets().getResponsibilitySet()) {
+                    if (responsibilitySet.getName() != null) {
+                        var netexResponsibilitySet = NetexResponsibilitySetProcessor.process(responsibilitySet);
+                        netexResponsibilitySet.setFileSetId(stDelivery.getFileSetId());
+                        responsibilitySetRepository.save(netexResponsibilitySet);
+                    }
+                }
+            } catch (Exception e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
 
@@ -189,10 +239,12 @@ public class NetexFileProcessor {
     }
     
     private void processSiteFrame(SiteFrame frame) {
-        frame.getStopPlaces().getStopPlace_().stream()
-            .map(JAXBElement::getValue)
-            .map(StopPlace.class::cast)
-            .forEach(this::processStopPlace);
+        if (frame.getStopPlaces() != null) {
+            frame.getStopPlaces().getStopPlace_().stream()
+                .map(JAXBElement::getValue)
+                .map(StopPlace.class::cast)
+                .forEach(this::processStopPlace);
+        }
     }
     
     private void processQuay(Quay quay, StNetexStopPlace netexStopPlace) {

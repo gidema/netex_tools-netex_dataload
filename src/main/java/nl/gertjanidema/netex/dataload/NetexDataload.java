@@ -5,6 +5,9 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,11 +19,14 @@ import nl.gertjanidema.netex.dataload.ndov.NdovService;
 @Component
 public class NetexDataload {
 
+    @SuppressWarnings("unused")
     private static Logger LOG = LoggerFactory.getLogger(NetexDataload.class);
 
     @Inject NdovService ndovService;
     @Inject StNetexDeliveryRepository deliveryRepository;
     @Inject FileProcessorFactory fileProcessorFactory;
+    @Inject JobRegistry jobRegistry;
+    @Inject JobLauncher jobLauncher;
     
     public void run() {
         try {
@@ -31,9 +37,19 @@ public class NetexDataload {
                 LOG.info("Processing file {}.", file.getFileName());
                 processFile(file);
             });
+
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+        }
+        try {
+            var parameters = new JobParametersBuilder()
+                .addString("JobID", String.valueOf(System.currentTimeMillis()))
+                .toJobParameters();
+            var job = jobRegistry.getJob("netexEtlUpdateJob");
+            jobLauncher.run(job, parameters);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
     

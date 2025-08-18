@@ -9,6 +9,9 @@
     </parent>
     <artifactId>netex_dataload</artifactId>
     <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <commons-net.version>3.6</commons-net.version>
         <jakarta.inject.version>2.0.1</jakarta.inject.version>

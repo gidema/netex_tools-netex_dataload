@@ -26,7 +26,15 @@ import lombok.RequiredArgsConstructor;
 @EnableBatchProcessing
 public class NetexEtlUpdateJob {
 
-private final static String update_netex_line_sql = """
+    private final static String update_netex_network_sql = """
+    TRUNCATE TABLE netex.netex_network;
+    SELECT *
+    INTO TABLE netex.netex_network
+    FROM netex.st_netex_network
+    WHERE id LIKE 'NL:%'
+""";
+    
+    private final static String update_netex_line_sql = """
     TRUNCATE TABLE netex.netex_line;
     INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, network)
     SELECT line."id",
@@ -39,13 +47,13 @@ private final static String update_netex_line_sql = """
         line.colour,
         line.text_colour,
         line.mobility_impaired_access,
-        ra.name AS responsibility_set,
+        rs.name AS responsibility_set,
         pc.name AS product_category,
-        nw.network AS network
+        COALESCE(nw.network, rs.name)
     FROM netex.st_netex_line line
     LEFT JOIN netex.st_netex_product_category pc ON pc.id = product_category_ref
-    LEFT JOIN netex.st_netex_responsible_area ra ON ra.id = responsibility_set_ref
-    LEFT JOIN netex.ref_netex_network nw ON nw.netex_network = ra.name;
+    LEFT JOIN netex.st_netex_responsibility_set rs ON rs.id = responsibility_set_ref
+    LEFT JOIN netex.ref_netex_network nw ON nw.netex_network = rs.name;
 """;
 
     private final static String update_netex_quay_sql = """
@@ -263,21 +271,11 @@ JOIN netex.netex_route_variant nrv ON nrd.route_id = nrv.route_refs[1]
     private final static String update_netex_line_endpoint_sql = """
 TRUNCATE TABLE netex.netex_line_endpoint;
 INSERT INTO netex.netex_line_endpoint
-SELECT DISTINCT *
-FROM (
-      SELECT line.id AS netex_line_id, rd.line_number, rd.start_stop_place_code AS stop_place_code
+    SELECT DISTINCT line.id AS netex_line_id, rq.line_number, rq.stop_place_code
       FROM netex.netex_line line
         JOIN netex.netex_route route ON route.line_ref = line.id
-        JOIN netex.netex_route_data rd ON rd.route_id = route.id
-      WHERE line.transport_mode = 'bus'
-    UNION 
-      SELECT line.id AS netex_line_id, rd.line_number, rd.end_stop_place_code AS stop_place_code
-      FROM netex.netex_line line
-        JOIN netex.netex_route route ON route.line_ref = line.id
-        JOIN netex.netex_route_data rd ON rd.route_id = route.id
-      WHERE line.transport_mode = 'bus'
-    ) AS SUB
-    WHERE stop_place_code IS NOT NULL;
+        JOIN netex.netex_route_quay rq ON rq.route_id = route.id
+      WHERE line.transport_mode = 'bus' AND stop_place_code IS NOT NULL;
 """;
 
     private final static String update_netex_links_sql = """
