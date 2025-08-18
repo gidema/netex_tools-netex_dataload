@@ -28,15 +28,15 @@ public class NetexEtlUpdateJob {
 
     private final static String update_netex_network_sql = """
     TRUNCATE TABLE netex.netex_network;
+    INSERT INTO netex.netex_network
     SELECT *
-    INTO TABLE netex.netex_network
     FROM netex.st_netex_network
     WHERE id LIKE 'NL:%'
 """;
     
     private final static String update_netex_line_sql = """
     TRUNCATE TABLE netex.netex_line;
-    INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, network)
+    INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, network, network_id)
     SELECT line."id",
         line."name",
         line.branding_ref,
@@ -47,13 +47,13 @@ public class NetexEtlUpdateJob {
         line.colour,
         line.text_colour,
         line.mobility_impaired_access,
-        rs.name AS responsibility_set,
+        line.responsibility_set_ref,
         pc.name AS product_category,
-        COALESCE(nw.network, rs.name)
+        rnw.network,
+        rnw.network_id
     FROM netex.st_netex_line line
     LEFT JOIN netex.st_netex_product_category pc ON pc.id = product_category_ref
-    LEFT JOIN netex.st_netex_responsibility_set rs ON rs.id = responsibility_set_ref
-    LEFT JOIN netex.ref_netex_network nw ON nw.netex_network = rs.name;
+    LEFT JOIN netex.ref_netex_network rnw ON rnw.responsibility_set_ref = line.responsibility_set_ref;
 """;
 
     private final static String update_netex_quay_sql = """
@@ -309,13 +309,15 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
     Job netexEtlUpdate(JobRepository jobRepository)  {
 
         return new JobBuilder("netexEtlUpdateJob", jobRepository)
-            .start(sqlUpdateStep("Update lines", update_netex_line_sql))
+            .start(sqlUpdateStep("Update network", update_netex_network_sql))
+            .next(sqlUpdateStep("Update lines", update_netex_line_sql))
             .next(sqlUpdateStep("Update routes", update_netex_route_sql))
             .next(sqlUpdateStep("Update quays", update_netex_quay_sql))
             .next(sqlUpdateStep("Update routeQuays", update_netex_route_quay_sql))
             .next(sqlUpdateStep("Update routeData", update_netex_route_data_sql))
             .next(sqlUpdateStep("Update route variants", update_netex_route_variant_sql))
             .next(sqlUpdateStep("Update route variant quays", update_netex_route_variant_quay_sql))
+            .next(sqlUpdateStep("Update route variant data", update_netex_route_variant_data_sql))
             .next(sqlUpdateStep("Update line endpoints", update_netex_line_endpoint_sql))
             .next(sqlUpdateStep("Update netex links", update_netex_links_sql))
             .build();

@@ -3,7 +3,8 @@ package nl.gertjanidema.netex.dataload;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -18,7 +19,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 excludeFilters = { @ComponentScan.Filter(type = FilterType.ASPECTJ, pattern = "nl.gertjanidema.netex.dataload.jobs.*")})
 @EnableJpaRepositories(basePackages = "nl.gertjanidema.netex.dataload.dto")
 @EntityScan("nl.gertjanidema.netex.dataload.dto")
-public class NetexDataloadCommand implements CommandLineRunner {
+public class NetexDataloadCommand implements ApplicationRunner {
 
     private static Logger LOG = LoggerFactory.getLogger(NetexDataloadCommand.class);
 
@@ -31,9 +32,12 @@ public class NetexDataloadCommand implements CommandLineRunner {
         LOG.info("APPLICATION FINISHED");
     }
     
+    @SuppressWarnings("exports")
     @Override
-    public void run(String... args) {
-        dataload().run();
+    public void run(ApplicationArguments args) {
+        var optionValues = args.getOptionValues("refreshFiles");
+        var refreshFiles = optionValues != null ? optionValues.get(0).equals("true") : true;
+        dataload().run(refreshFiles);
     }
     
     @SuppressWarnings("static-method")

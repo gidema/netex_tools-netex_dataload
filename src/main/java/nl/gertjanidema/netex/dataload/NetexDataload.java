@@ -19,7 +19,6 @@ import nl.gertjanidema.netex.dataload.ndov.NdovService;
 @Component
 public class NetexDataload {
 
-    @SuppressWarnings("unused")
     private static Logger LOG = LoggerFactory.getLogger(NetexDataload.class);
 
     @Inject NdovService ndovService;
@@ -28,19 +27,20 @@ public class NetexDataload {
     @Inject JobRegistry jobRegistry;
     @Inject JobLauncher jobLauncher;
     
-    public void run() {
-        try {
-            var newNetexFiles = ndovService.checkForNewNetexFiles();
-            // Cache the requested netex files
-            var files = ndovService.downloadNetexFiles(newNetexFiles);
-            files.forEach(file -> {
-                LOG.info("Processing file {}.", file.getFileName());
-                processFile(file);
-            });
-
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+    public void run(boolean refreshFiles) {
+        if (refreshFiles) {
+            try {
+                var newNetexFiles = ndovService.checkForNewNetexFiles();
+                // Cache the requested netex files
+                var files = ndovService.downloadNetexFiles(newNetexFiles);
+                files.forEach(file -> {
+                    LOG.info("Processing file {}.", file.getFileName());
+                    processFile(file);
+                });
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
         try {
             var parameters = new JobParametersBuilder()
