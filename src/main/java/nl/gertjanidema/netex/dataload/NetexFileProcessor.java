@@ -64,37 +64,37 @@ public class NetexFileProcessor {
     private StNetexDelivery stDelivery;
 
     @Inject
+    StNetexProductCategoryRepository productCategoryRepository;
+
+    @Inject
+    StNetexResponsibleAreaRepository responsibleAreaRepository;
+
+    @Inject
+    StNetexResponsibilitySetRepository responsibilitySetRepository;
+
+    @Inject
     StNetexNetworkRepository networkRepository;
 
     @Inject
-    StNetexQuayRepository quayRepository;
-    
-    @Inject
-    StNetexStopPlaceRepository stopPlaceRepository;
-    
-    @Inject
     StNetexLineRepository lineRepository;
-    
-    @Inject
-    StNetexScheduledStopPointRepository scheduledStopPointRepository;
-    
+
     @Inject
     StNetexRouteRepository routeRepository;
-    
+
     @Inject
     StNetexPointOnRouteRepository pointOnRouteRepository;
-    
+
     @Inject
     StNetexPointOnJourneyRepository pointOnJourneyRepository;
-    
+
     @Inject
-    StNetexResponsibleAreaRepository responsibleAreaRepository;
-    
+    StNetexScheduledStopPointRepository scheduledStopPointRepository;
+
     @Inject
-    StNetexProductCategoryRepository productCategoryRepository;
-    
+    StNetexQuayRepository quayRepository;
+
     @Inject
-    StNetexResponsibilitySetRepository responsibilitySetRepository;
+    StNetexStopPlaceRepository stopPlaceRepository;
 
     protected StNetexDelivery processHeader(NetexFileInfo fileInfo) {
         delivery = readFile(fileInfo.getCachedFile());
@@ -104,7 +104,16 @@ public class NetexFileProcessor {
     
     @Transactional
     public void processData() {
+        productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        responsibleAreaRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
         lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        routeRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        pointOnRouteRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
         delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
             if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
                 processCompositeFrame((CompositeFrame) frameStructure.getValue());

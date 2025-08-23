@@ -4,7 +4,6 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface StNetexRouteRepository extends CrudRepository<StNetexRoute, String> {
 
-    //
-    
+    public void deleteByFileSetId(String fileSetId);
 }
 
