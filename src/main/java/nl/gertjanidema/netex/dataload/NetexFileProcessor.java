@@ -40,7 +40,6 @@ import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexProductCategoryRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexQuayRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexResponsibilitySetRepository;
-import nl.gertjanidema.netex.dataload.dto.StNetexResponsibleAreaRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPointRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
@@ -65,9 +64,6 @@ public class NetexFileProcessor {
 
     @Inject
     StNetexProductCategoryRepository productCategoryRepository;
-
-    @Inject
-    StNetexResponsibleAreaRepository responsibleAreaRepository;
 
     @Inject
     StNetexResponsibilitySetRepository responsibilitySetRepository;
@@ -105,7 +101,6 @@ public class NetexFileProcessor {
     @Transactional
     public void processData() {
         productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        responsibleAreaRepository.deleteByFileSetId(stDelivery.getFileSetId());
         responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
         networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
         lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
