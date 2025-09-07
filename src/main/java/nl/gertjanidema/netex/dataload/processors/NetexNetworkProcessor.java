@@ -4,7 +4,7 @@ import org.rutebanken.netex.model.Network;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
 
-public class NetexNetworkProcessor extends AbstractNetexProcessor{
+public class NetexNetworkProcessor extends AbstractNetexProcessor {
  
     public static StNetexNetwork process(Network network) throws Exception {
         var netexNetwork = new StNetexNetwork();

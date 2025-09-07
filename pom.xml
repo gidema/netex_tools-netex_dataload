@@ -15,10 +15,20 @@
         <maven.compiler.release>17</maven.compiler.release>
         <commons-net.version>3.6</commons-net.version>
         <jakarta.inject.version>2.0.1</jakarta.inject.version>
-        <netex-java.version>2.0.15</netex-java.version>
+        <netex-java.version>2.1.0-SNAPSHOT</netex-java.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>nl.gertjanidema</groupId>
+            <artifactId>netex-java-model</artifactId>
+            <version>${netex-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+<!--            <version>4.0.1</version>-->
+        </dependency>
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-jpa</artifactId>
@@ -78,20 +88,20 @@
             <artifactId>hibernate-spatial</artifactId>
         </dependency>
         <dependency>
-            <groupId>jakarta.xml.bind</groupId>
-            <artifactId>jakarta.xml.bind-api</artifactId>
-        </dependency>
-        <dependency>
             <groupId>nl.gertjanidema.netex_tools</groupId>
             <artifactId>core</artifactId>
             <version>1.0.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.entur</groupId>
-            <artifactId>netex-java-model</artifactId>
-            <version>${netex-java.version}</version>
-        </dependency>
     </dependencies>
+    <dependencyManagement>
+      <dependencies>
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+            <version>4.0.2</version>
+        </dependency>
+      </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <plugin>

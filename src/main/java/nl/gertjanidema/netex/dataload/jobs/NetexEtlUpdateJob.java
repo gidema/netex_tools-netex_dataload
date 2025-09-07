@@ -49,11 +49,12 @@ public class NetexEtlUpdateJob {
         line.mobility_impaired_access,
         line.responsibility_set_ref,
         pc.name AS product_category,
-        rnw.network,
+        nnw.name,
         rnw.network_id
     FROM netex.st_netex_line line
     LEFT JOIN netex.st_netex_product_category pc ON pc.id = product_category_ref
-    LEFT JOIN netex.ref_netex_network rnw ON rnw.responsibility_set_ref = line.responsibility_set_ref;
+    LEFT JOIN netex.ref_netex_network rnw ON rnw.responsibility_set_ref = line.responsibility_set_ref
+    LEFT JOIN netex.st_netex_network nnw ON nnw.id = rnw.network_id;
 """;
 
     private final static String update_netex_quay_sql = """
@@ -268,14 +269,14 @@ FROM netex.netex_route_data nrd
 JOIN netex.netex_route_variant nrv ON nrd.route_id = nrv.route_refs[1]
 """;
     
-    private final static String update_netex_line_endpoint_sql = """
-TRUNCATE TABLE netex.netex_line_endpoint;
-INSERT INTO netex.netex_line_endpoint
+    private final static String update_netex_line_stop_place_sql = """
+TRUNCATE TABLE netex.netex_line_stop_place;
+INSERT INTO netex.netex_line_stop_place
     SELECT DISTINCT line.id AS netex_line_id, rq.line_number, rq.stop_place_code
       FROM netex.netex_line line
         JOIN netex.netex_route route ON route.line_ref = line.id
         JOIN netex.netex_route_quay rq ON rq.route_id = route.id
-      WHERE line.transport_mode = 'bus' AND stop_place_code IS NOT NULL;
+      WHERE stop_place_code IS NOT NULL;
 """;
 
     private final static String update_netex_links_sql = """
@@ -318,7 +319,7 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
             .next(sqlUpdateStep("Update route variants", update_netex_route_variant_sql))
             .next(sqlUpdateStep("Update route variant quays", update_netex_route_variant_quay_sql))
             .next(sqlUpdateStep("Update route variant data", update_netex_route_variant_data_sql))
-            .next(sqlUpdateStep("Update line endpoints", update_netex_line_endpoint_sql))
+            .next(sqlUpdateStep("Update line endpoints", update_netex_line_stop_place_sql))
             .next(sqlUpdateStep("Update netex links", update_netex_links_sql))
             .build();
     }

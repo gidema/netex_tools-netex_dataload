@@ -17,10 +17,12 @@ module nl.gertjanidema.netex.dataload {
     requires jakarta.annotation;
     requires lombok;
     requires spring.data.commons;
-    requires org.entur.netex.java.model;
-    requires jakarta.xml.bind;
+//    requires jakarta.xml.bind;
     requires commons.net;
-    
+    requires org.apache.commons.lang3;
+    requires netex.java.model;
+    requires jakarta.xml.bind;
+
     opens nl.gertjanidema.netex.dataload to spring.core, spring.beans, spring.context;
     opens nl.gertjanidema.netex.dataload.ndov to spring.core, spring.beans, spring.context;
     opens nl.gertjanidema.netex.dataload.jobs to spring.core, spring.beans, spring.context;

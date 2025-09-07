@@ -7,7 +7,6 @@ import java.util.zip.GZIPInputStream;
 
 import org.rutebanken.netex.model.CompositeFrame;
 import org.rutebanken.netex.model.GeneralFrame;
-import org.rutebanken.netex.model.General_VersionFrameStructure;
 import org.rutebanken.netex.model.Line;
 import org.rutebanken.netex.model.Line_VersionStructure;
 import org.rutebanken.netex.model.LinkSequence_VersionStructure;
@@ -30,6 +29,7 @@ import jakarta.inject.Inject;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 import nl.gertjanidema.netex.dataload.dto.StNetexLineRepository;
@@ -109,6 +109,7 @@ public class NetexFileProcessor {
         pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
         stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
         quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        JAXBElement<?> el;
         delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
             if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
                 processCompositeFrame((CompositeFrame) frameStructure.getValue());
@@ -189,7 +190,7 @@ public class NetexFileProcessor {
     }
 
     private void processServiceFrame(ServiceFrame frame) {
-        frame.getLines().getLine_().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
+        frame.getLines().getLine_Dummy().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
             .forEach(line -> {
                 if (line instanceof Line) {
                     processLine((Line) line);
@@ -197,7 +198,7 @@ public class NetexFileProcessor {
                 else LOG.info("Unprocessed line type: {}", line.getClass().getName());
             });
         frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
-        frame.getRoutes().getRoute_().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
+        frame.getRoutes().getRoute_Dummy().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
             .forEach(linkSequence -> {
                 if (linkSequence instanceof Route) {
                     processRoute((Route) linkSequence);
@@ -244,8 +245,7 @@ public class NetexFileProcessor {
     
     private void processSiteFrame(SiteFrame frame) {
         if (frame.getStopPlaces() != null) {
-            frame.getStopPlaces().getStopPlace_().stream()
-                .map(JAXBElement::getValue)
+            frame.getStopPlaces().getStopPlace().stream()
                 .map(StopPlace.class::cast)
                 .forEach(this::processStopPlace);
         }
@@ -284,9 +284,9 @@ public class NetexFileProcessor {
             var streamReader = new GZIPInputStream(is);
         ) {
             var context = JAXBContext.newInstance(PublicationDeliveryStructure.class);
+            var unmarshaller = context.createUnmarshaller();
             @SuppressWarnings("unchecked")
-            var delivery = ((JAXBElement<PublicationDeliveryStructure>)context.createUnmarshaller()
-                    .unmarshal(streamReader))
+            var delivery = ((JAXBElement<PublicationDeliveryStructure>)unmarshaller.unmarshal(streamReader))
                     .getValue();
             return delivery;
         } catch (JAXBException | IOException e) {
@@ -295,6 +295,7 @@ public class NetexFileProcessor {
         }
     }
     
+    @SuppressWarnings("exports")
     public StNetexDelivery getStDelivery() {
         return stDelivery;
     }

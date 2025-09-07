@@ -9,7 +9,7 @@ import org.rutebanken.netex.model.ScheduledStopPoint;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPoint;
 
-public class NetexScheduledStopPointProcessor {
+public class NetexScheduledStopPointProcessor extends AbstractNetexProcessor {
  
     public static StNetexScheduledStopPoint process(ScheduledStopPoint stop) throws Exception {
         var stopPoint = new StNetexScheduledStopPoint();
@@ -18,15 +18,27 @@ public class NetexScheduledStopPointProcessor {
         stopPoint.setName(stopName.name());
         stopPoint.setPlace(stopName.place());
         if (stop.getShortName() != null) {
-            stopPoint.setShortName(stop.getShortName().getValue());
+            stopPoint.setShortName((String) stop.getShortName().getContent().get(0));
         }
+        var idParts = stop.getId().split(":");
+
         if (stop.getPrivateCode() != null && "UserStopCode".equals(stop.getPrivateCode().getType())) {
             stopPoint.setUserStopCode(stop.getPrivateCode().getValue());
-            stopPoint.setUserStopOwnerCode(getOwnerCodeFromId(stop.getId()));
         }
-        List<Double> position = getPosition(stop);
-        stopPoint.setXCoordinate(position.get(0));
-        stopPoint.setYCoordinate(position.get(1));
+        else if (stop.getPrivateCodes() != null) {
+            stop.getPrivateCodes().getPrivateCode().forEach(code -> {
+                if ("UserStopCode".equals(code.getType())) {
+                    stopPoint.setUserStopCode(code.getValue());
+                }
+            });
+        }
+//        if (stopPoint.getUserStopCode() == null) {
+//            stopPoint.setUserStopCode(getUserStopCodeFromId(idParts));
+//        }
+        stopPoint.setUserStopOwnerCode(getOwnerCodeFromId(idParts));
+
+        stopPoint.setXCoordinate(getX(stop.getLocation()));
+        stopPoint.setYCoordinate(getY(stop.getLocation()));
         stopPoint.setRoutePointRef(getRoutePointRef(stop));
         stopPoint.setTariffZones(getTariffZones(stop));
         stopPoint.setForBoarding(stop.isForBoarding() == null ? true : stop.isForBoarding()); 
@@ -36,17 +48,11 @@ public class NetexScheduledStopPointProcessor {
     
     private static StopName getStopName(ScheduledStopPoint stop) {
         if (stop.getName() == null) return null;
-        var parts = stop.getName().getValue().split(", ", 2);
+        var parts = toString(stop.getName()).split(", ", 2);
         if (parts.length ==2) {
             return new StopName(parts[1], parts[0]);
         }
         return new StopName(parts[0], null);                
-    }
-    
-    private static List<Double> getPosition(ScheduledStopPoint stop) {
-        var rd = stop.getLocation();
-        if (rd == null) return null;
-        return rd.getPos().getValue();
     }
     
     private static String getRoutePointRef(ScheduledStopPoint stop) {
@@ -64,7 +70,7 @@ public class NetexScheduledStopPointProcessor {
     
     private static List<String> getTariffZones(ScheduledStopPoint stop) {
         if(stop.getTariffZones() == null) return Collections.emptyList(); 
-        var zoneRefs = stop.getTariffZones().getTariffZoneRef_();
+        var zoneRefs = stop.getTariffZones().getTariffZoneRef_Dummy();
         List<String> zones = new ArrayList<>(zoneRefs.size());
         zoneRefs.forEach(z -> {
             var zoneRef = z.getValue();
@@ -76,9 +82,13 @@ public class NetexScheduledStopPointProcessor {
         return zones;
     }
     
-    private static String getOwnerCodeFromId(String id) {
-        return id.split(":")[0];
+    private static String getOwnerCodeFromId(String[] idParts) {
+        return "NL".equals(idParts[0]) ? idParts[1] : idParts[0];
     }
+    
+//    private static String getUserStopCodeFromId(String[] idParts) {
+//        return idParts[idParts.length -1];
+//    }
     
     static record StopName(String name, String place) {}
 }

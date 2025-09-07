@@ -7,12 +7,12 @@ import org.rutebanken.netex.model.ResponsibilitySet;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexResponsibilitySet;
 
-public class NetexResponsibilitySetProcessor {
+public class NetexResponsibilitySetProcessor extends AbstractNetexProcessor {
  
     public static StNetexResponsibilitySet process(ResponsibilitySet responsibilitySet) throws Exception {
         var netexResponsibilitySet = new StNetexResponsibilitySet();
         netexResponsibilitySet.setId(responsibilitySet.getId());
-        netexResponsibilitySet.setName(responsibilitySet.getName() != null ? responsibilitySet.getName().getValue() : null);
+        netexResponsibilitySet.setName(responsibilitySet.getName() != null ? toString(responsibilitySet.getName()) : null);
         Set<String> roles = new HashSet<>();
         netexResponsibilitySet.setRoles(roles);
         if (responsibilitySet.getRoles() != null) {
