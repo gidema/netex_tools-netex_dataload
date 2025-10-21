@@ -7,7 +7,7 @@ import org.rutebanken.netex.model.Version;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 
-public class NetexDeliveryProcesser {
+public class NetexDeliveryProcesser extends AbstractNetexProcessor {
     public static StNetexDelivery process(PublicationDeliveryStructure delivery, NetexFileInfo fileInfo) {
         var stDelivery = new StNetexDelivery();
         stDelivery.setFileSetId(fileInfo.getFileSetId());
@@ -15,7 +15,7 @@ public class NetexDeliveryProcesser {
         stDelivery.setPublicationTimestamp(delivery.getPublicationTimestamp());
         stDelivery.setParticipantRef(delivery.getParticipantRef());
         if (delivery.getDescription() != null) {
-            stDelivery.setDescription(delivery.getDescription().getValue());
+            stDelivery.setDescription(toString(delivery.getDescription()));
         }
         delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
             if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {

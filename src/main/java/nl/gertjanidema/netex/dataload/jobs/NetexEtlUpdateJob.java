@@ -26,26 +26,45 @@ import lombok.RequiredArgsConstructor;
 @EnableBatchProcessing
 public class NetexEtlUpdateJob {
 
-private final static String update_netex_line_sql = """
-    TRUNCATE TABLE netex.netex_line;
-    INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, network)
-    SELECT line."id",
-        line."name",
-        line.branding_ref,
-        line.direction_type,
-        line.transport_mode,
-        line.public_code,
-        line.private_code,
-        line.colour,
-        line.text_colour,
-        line.mobility_impaired_access,
-        ra.name AS responsibility_set,
-        pc.name AS product_category,
-        nw.network AS network
-    FROM netex.st_netex_line line
-    LEFT JOIN netex.st_netex_product_category pc ON pc.id = product_category_ref
-    LEFT JOIN netex.st_netex_responsible_area ra ON ra.id = responsibility_set_ref
-    LEFT JOIN netex.ref_netex_network nw ON nw.netex_network = ra.name;
+    private final static String update_netex_network_sql = """
+DELETE FROM netex.st_netex_admin_zone WHERE id='NL:DOVA:TransportAdministrativeZone:OVGD';
+INSERT INTO netex.st_netex_admin_zone(id, name, short_name, file_set_id)
+    VALUES ('NL:DOVA:TransportAdministrativeZone:OVGD', 'Publiek vervoer Groningen Drenthe', 'OVGD', 'Manual');    TRUNCATE TABLE netex.netex_network;
+DELETE FROM netex.st_netex_network WHERE id = 'NL:DOVA:Network:OVGD';
+INSERT INTO netex.st_netex_network(
+    id, from_date, to_date, name, short_name, authority_ref, file_set_id)
+    VALUES ('NL:DOVA:Network:OVGD', '2018-04-08', '2026-08-01', 'Publiek vervoer Groningen-Drenthe', 'OVGD', 'DOVA:Authority:OVGD', 'Manual');
+INSERT INTO netex.netex_network
+    SELECT *, 'NL:DOVA:TransportAdministrativeZone:' || short_name AS administrative_zone
+    FROM netex.st_netex_network
+    WHERE id LIKE 'NL:%'
+""";
+    
+    private final static String update_netex_line_sql = """
+UPDATE netex.st_netex_line
+    SET responsibility_set_ref = 'NL:QBUZZ:ResponsibilitySet:OVGD'
+    WHERE name LIKE 'Buurtbus%' AND responsibility_set_ref = 'QBUZZ:ResponsibilitySet:GD';
+TRUNCATE TABLE netex.netex_line;
+INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, administrative_zone, line_sort)
+SELECT line."id",
+    line."name",
+    line.branding_ref,
+    line.direction_type,
+    line.transport_mode,
+    line.public_code,
+    line.private_code,
+    line.colour,
+    line.text_colour,
+    line.mobility_impaired_access,
+    line.responsibility_set_ref,
+    pc.name AS product_category,
+    CASE WHEN starts_with(nrs.administrative_zone, 'DOVA')
+    THEN 'NL:' || nrs.administrative_zone
+    ELSE nrs.administrative_zone END AS administrative_zone,
+    CASE WHEN line.public_code ~ '^[0-9]{1,5}$' THEN LPAD(line.public_code, 5, '0') ELSE line.public_code END AS line_sort
+FROM netex.st_netex_line line
+LEFT JOIN netex.st_netex_product_category pc ON pc.id = product_category_ref
+LEFT JOIN netex.st_netex_responsibility_set nrs ON nrs.id = line.responsibility_set_ref;
 """;
 
     private final static String update_netex_quay_sql = """
@@ -70,7 +89,7 @@ FROM netex.st_netex_scheduled_stop_point
     
     private final static String update_netex_route_sql = """
 TRUNCATE TABLE netex.netex_route;
-INSERT INTO netex.netex_route
+INSERT INTO netex.netex_route ("id", "name", "line_ref", "direction_type")
 SELECT "id", "name", "line_ref", "direction_type"
 FROM netex.st_netex_route
 """;
@@ -85,7 +104,9 @@ WITH route_quay AS (
       psa.quay_code,
       chb_quay.stop_side_code,
       por.sequence AS sequence,
-      COALESCE(psa.stop_place_code, csp.stop_place_code) AS stop_place_code
+      COALESCE(psa.stop_place_code, csp.stop_place_code) AS stop_place_code,
+      chb_quay.quay_name,
+      chb_quay.town
     FROM netex.st_netex_point_on_route por
     JOIN netex.netex_quay quay ON quay.route_point_ref = por.route_point_ref
     JOIN netex.netex_route route ON route.id = por.route_id
@@ -124,7 +145,9 @@ route_quay2 AS (
         ) AS "rank",
         COUNT(*) OVER (
           PARTITION BY route_id
-        ) AS count
+        ) AS count,
+        quay_name,
+        town
     FROM route_quay
     WHERE point_on_route_id NOT IN (
         SELECT point_on_route_id FROM ignorable_point_on_route
@@ -137,8 +160,9 @@ SELECT rq.public_code AS line_number,
   rq.stop_side_code,
   rq.stop_place_code,
   rq.rank AS quay_index,
-  CASE WHEN rq.rank=1 THEN 'start' WHEN rq.rank = rq.count THEN 'end' ELSE 'middle' END AS quay_location_type,
-  rq.point_on_route_id
+  rq.point_on_route_id,
+  rq.quay_name,
+  rq.town
   FROM route_quay2 rq;
 """;
 
@@ -196,22 +220,21 @@ route_quay2 AS (
         SELECT point_on_route_id FROM ignorable_point_on_route
     )
 )
-INSERT INTO netex.netex_route_quay
+INSERT INTO netex.netex_journey_quay
 SELECT rq.public_code AS line_number,
   rq.route_id,
   rq.quay_code,
   rq.stop_side_code,
   rq.stop_place_code,
   rq.rank AS quay_index,
-  CASE WHEN rq.rank=1 THEN 'start' WHEN rq.rank = rq.count THEN 'end' ELSE 'middle' END AS quay_location_type,
   rq.point_on_route_id
   FROM route_quay2 rq;
 """;
 
     private final static String update_netex_route_data_sql = """
 TRUNCATE TABLE netex.netex_route_data;
-WITH stats AS (
-  SELECT rq.line_number, 
+INSERT INTO netex.netex_route_data (line_number, route_id, line_ref, direction_type, quay_list, stop_place_list, quay_count)
+SELECT rq.line_number, 
     rt.id AS route_id,
     rt.line_ref,
     rt.direction_type,
@@ -220,64 +243,51 @@ WITH stats AS (
     COUNT(rq.quay_code) AS quay_count
   FROM netex.netex_route rt
   LEFT JOIN netex.netex_route_quay rq ON rq.route_id = rt.id
-  GROUP BY rq.line_number, rt.id, rt.line_ref)
-INSERT INTO netex.netex_route_data (line_number, route_id, line_ref, direction_type, quay_list, stop_place_list, quay_count, start_quay_code, end_quay_code, start_stop_place_code, end_stop_place_code)
-SELECT stats.*,
-    start_quay.quay_code AS start_quay_code,
-    end_quay.quay_code AS end_quay_code,
-    start_quay.stop_place_code AS start_stop_place_code,
-    end_quay.stop_place_code AS end_stop_place_code
-FROM stats
-JOIN netex.netex_route_quay start_quay ON start_quay.route_id = stats.route_id AND start_quay.quay_location_type = 'start'
-JOIN netex.netex_route_quay end_quay ON end_quay.route_id = stats.route_id AND end_quay.quay_location_type = 'end';
+  GROUP BY rq.line_number, rt.id, rt.line_ref
 """;
 
     private final static String update_netex_route_variant_sql = """
 TRUNCATE TABLE netex.netex_route_variant;
-INSERT INTO netex.netex_route_variant (line_number, direction_type, quay_list, stop_place_list, quay_count, start_quay_code, end_quay_code, start_stop_place_code, end_stop_place_code, line_ref, route_refs, colour, network)
+INSERT INTO netex.netex_route_variant (line_number, direction_type, quay_list, stop_place_list, quay_count, line_ref, colour, administrative_zone)
 SELECT nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count, 
-    nrd.start_quay_code, nrd.end_quay_code, nrd.start_stop_place_code, nrd.end_stop_place_code, 
-    nrd.line_ref, ARRAY_AGG(nrd.route_id) AS route_refs, nl.colour, nl.network
+    nrd.line_ref, nl.colour, nl.administrative_zone
 FROM netex.netex_route_data nrd
   LEFT JOIN netex.netex_line nl ON nl.id = nrd.line_ref
-GROUP BY nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count, nrd.start_quay_code, nrd.end_quay_code, nrd.start_stop_place_code, nrd.end_stop_place_code, nrd.line_ref, nl.colour, nl.network
+GROUP BY nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count, nrd.line_ref, nl.colour, nl.administrative_zone;
+-- Add the variant_id reference to the netex routes
+UPDATE netex.netex_route AS nr
+SET variant_id = nrv.id
+FROM netex.netex_route_data nrd
+JOIN netex.netex_route_variant nrv ON nrv.quay_list = nrd.quay_list
+WHERE nrd.route_id = nr.id;
 """;
 
     private final static String update_netex_route_variant_quay_sql = """
 TRUNCATE TABLE netex.netex_route_variant_quay;
 INSERT INTO netex.netex_route_variant_quay(
-        line_number, variant_id, quay_code, stop_side_code, stop_place_code, quay_index, quay_location_type)
-    SELECT nrq.line_number, variant.id, nrq.quay_code, nrq.stop_side_code, nrq.stop_place_code, nrq.quay_index, nrq.quay_location_type
+        line_number, variant_id, quay_code, stop_side_code, stop_place_code, quay_index, quay_name, town)
+    SELECT DISTINCT nrq.line_number, variant.id, nrq.quay_code, nrq.stop_side_code, nrq.stop_place_code, nrq.quay_index, nrq.quay_name, nrq.town
     FROM netex.netex_route_variant variant
-    JOIN netex.netex_route_quay nrq ON nrq.route_id = variant.route_refs[1]
+    JOIN netex.netex_route route ON route.variant_id = variant.id
+    JOIN netex.netex_route_quay nrq ON nrq.route_id = route.id
 """;
     
     private final static String update_netex_route_variant_data_sql = """
 TRUNCATE TABLE netex.netex_route_variant_data;
-INSERT INTO netex.netex_route_variant_data (line_number, variant_id, line_ref, direction_type, quay_list, stop_place_list, quay_count, start_quay_code, end_quay_code, start_stop_place_code, end_stop_place_code)
-SELECT nrd.line_number, nrv.id, nrd.line_ref, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count, nrd.start_quay_code, nrd.end_quay_code, nrd.start_stop_place_code, nrd.end_stop_place_code
+INSERT INTO netex.netex_route_variant_data (line_number, variant_id, line_ref, direction_type, quay_list, stop_place_list, quay_count)
+SELECT nrd.line_number, nr.variant_id, nrd.line_ref, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count
 FROM netex.netex_route_data nrd
-JOIN netex.netex_route_variant nrv ON nrd.route_id = nrv.route_refs[1]
+JOIN netex.netex_route nr ON nrd.route_id = nr.id
 """;
     
-    private final static String update_netex_line_endpoint_sql = """
-TRUNCATE TABLE netex.netex_line_endpoint;
-INSERT INTO netex.netex_line_endpoint
-SELECT DISTINCT *
-FROM (
-      SELECT line.id AS netex_line_id, rd.line_number, rd.start_stop_place_code AS stop_place_code
-      FROM netex.netex_line line
-        JOIN netex.netex_route route ON route.line_ref = line.id
-        JOIN netex.netex_route_data rd ON rd.route_id = route.id
-      WHERE line.transport_mode = 'bus'
-    UNION 
-      SELECT line.id AS netex_line_id, rd.line_number, rd.end_stop_place_code AS stop_place_code
-      FROM netex.netex_line line
-        JOIN netex.netex_route route ON route.line_ref = line.id
-        JOIN netex.netex_route_data rd ON rd.route_id = route.id
-      WHERE line.transport_mode = 'bus'
-    ) AS SUB
-    WHERE stop_place_code IS NOT NULL;
+    private final static String update_netex_line_stop_place_sql = """
+TRUNCATE TABLE netex.netex_line_stop_place;
+INSERT INTO netex.netex_line_stop_place
+SELECT DISTINCT line.id AS netex_line_id, rq.line_number, rq.stop_place_code, line.administrative_zone
+  FROM netex.netex_line line
+    JOIN netex.netex_route route ON route.line_ref = line.id
+    JOIN netex.netex_route_quay rq ON rq.route_id = route.id
+  WHERE stop_place_code IS NOT NULL;
 """;
 
     private final static String update_netex_links_sql = """
@@ -311,14 +321,16 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
     Job netexEtlUpdate(JobRepository jobRepository)  {
 
         return new JobBuilder("netexEtlUpdateJob", jobRepository)
-            .start(sqlUpdateStep("Update lines", update_netex_line_sql))
+            .start(sqlUpdateStep("Update network", update_netex_network_sql))
+            .next(sqlUpdateStep("Update lines", update_netex_line_sql))
             .next(sqlUpdateStep("Update routes", update_netex_route_sql))
             .next(sqlUpdateStep("Update quays", update_netex_quay_sql))
             .next(sqlUpdateStep("Update routeQuays", update_netex_route_quay_sql))
             .next(sqlUpdateStep("Update routeData", update_netex_route_data_sql))
             .next(sqlUpdateStep("Update route variants", update_netex_route_variant_sql))
             .next(sqlUpdateStep("Update route variant quays", update_netex_route_variant_quay_sql))
-            .next(sqlUpdateStep("Update line endpoints", update_netex_line_endpoint_sql))
+            .next(sqlUpdateStep("Update route variant data", update_netex_route_variant_data_sql))
+            .next(sqlUpdateStep("Update line endpoints", update_netex_line_stop_place_sql))
             .next(sqlUpdateStep("Update netex links", update_netex_links_sql))
             .build();
     }

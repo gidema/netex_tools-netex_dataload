@@ -2,7 +2,7 @@ package nl.gertjanidema.netex.dataload.dto;
 
 import org.springframework.data.repository.CrudRepository;
 
-public interface StNetexRouteRepository extends CrudRepository<StNetexRoute, String> {
+public interface StNetexResponsibilitySetRepository extends CrudRepository<StNetexResponsibilitySet, String> {
 
     public void deleteByFileSetId(String fileSetId);
 }

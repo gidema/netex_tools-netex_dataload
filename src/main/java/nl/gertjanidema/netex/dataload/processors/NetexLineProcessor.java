@@ -5,17 +5,17 @@ import org.rutebanken.netex.model.Line;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexLine;
 
-public class NetexLineProcessor {
+public class NetexLineProcessor extends AbstractNetexProcessor {
  
     public static StNetexLine process(Line line) throws Exception {
         line.getResponsibilitySetRef();
         var netexLine = new StNetexLine();
         netexLine.setId(line.getId());
         netexLine.setResponsibilitySetRef(line.getResponsibilitySetRef());
-        netexLine.setName(line.getName() != null ? line.getName().getValue() : null);
+        netexLine.setName(line.getName() != null ? toString(line.getName()) : null);
         netexLine.setBrandingRef(getBrandingRef(line));
         netexLine.setTransportMode(getTransportMode(line));
-        netexLine.setPublicCode(line.getPublicCode());
+        netexLine.setPublicCode(line.getPublicCode().getValue());
         netexLine.setPrivateCode(getPrivateCode(line));
         var presentation = line.getPresentation();
         if (presentation != null) {

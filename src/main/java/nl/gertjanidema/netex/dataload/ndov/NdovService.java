@@ -6,8 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static java.util.function.Predicate.not;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -33,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
@@ -65,19 +60,19 @@ public class NdovService {
     StNetexDeliveryRepository deliveryRepository;
 
     private Map<String, NdovSource> sources = new HashMap<>(32);
+    
+    private boolean initialized = false;
 
-    public Path getNetexTempPath() {
+    private Path getNetexTempPath() {
         return tempPath.resolve("netex");
     }
 
-    public Path getChbTempPath() {
-        return tempPath.resolve("chb");
-    }
-    
-    @PostConstruct
-    public void initialize() {
-        this.initializeNetexFolders();
-        this.initializeFileInfo();
+    private void initialize() {
+        if (!initialized) {
+            this.initializeNetexFolders();
+            this.initializeFileInfo();
+            initialized = true;
+        }
     }
 
 /**
@@ -91,18 +86,7 @@ public class NdovService {
         }
     }
     
-    /**
-     * Initialize the CHB context. Create temporary folders if necessary and clear
-     * any old temporary files.
-     */
-    public void initializeChb() {
-        var folder = getChbTempPath().toFile();
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-    }
-
-    public FTPClient connect() throws IOException {
+    private FTPClient connect() throws IOException {
         FTPClient ftpClient;
         if (useSftp) {
             ftpClient = new FTPSClient();
@@ -157,7 +141,7 @@ public class NdovService {
             // Get the fileSetId from the filename
             Matcher m = fileNamePattern.matcher(ftpFile.getName());
             if (!m.matches()) {
-                LOG.warn("Unexpected filename: {0}", ftpFile.getName());
+                LOG.warn("Unexpected filename: {}", ftpFile.getName());
                 continue;
             }
             var fileSetId = m.toMatchResult().group(2);
@@ -183,6 +167,7 @@ public class NdovService {
      * @param useCache If true, always download the file. Overwrite the cached file if it exists.
      */
     public Collection<NetexFileInfo> downloadNetexFiles(Collection<NetexFileInfo> netexFiles, boolean useCache) {
+        initialize();
         netexFiles.forEach(fileInfo -> {
             try {
                 var cachedFile = new File(getNetexTempPath().toFile(), fileInfo.getFileName());
@@ -228,6 +213,7 @@ public class NdovService {
     }
 
     public List<NetexFileInfo> checkForNewNetexFiles() throws IOException {
+        initialize();
         var existingFilenames = getExistingFileNames();
         return getNewestNetexFiles().stream()
             .filter(fileInfo -> !existingFilenames.contains(fileInfo.getFileName()))
@@ -246,19 +232,19 @@ public class NdovService {
      * @return The list.
      * @throws IOException
      */
-    public List<NetexFileInfo> getNewestNetexFiles() throws IOException {
+    private List<NetexFileInfo> getNewestNetexFiles() throws IOException {
         return sources.values().stream().flatMap(source -> source.getNewestFiles().stream()).toList();
     }
     
-    /**
-     * Retrieve a list of fileinfo about the available netex files on the Ndov server.
-     * 
-     * @return The list.
-     * @throws IOException
-     */
-    public List<NetexFileInfo> getAvailableNetexFiles() throws IOException {
-        return sources.values().stream().flatMap(source -> source.getAvailableFiles().stream()).toList();
-    }
+//    /**
+//     * Retrieve a list of fileinfo about the available netex files on the Ndov server.
+//     * 
+//     * @return The list.
+//     * @throws IOException
+//     */
+//    public List<NetexFileInfo> getAvailableNetexFiles() throws IOException {
+//        return sources.values().stream().flatMap(source -> source.getAvailableFiles().stream()).toList();
+//    }
     
     private void initializeFileInfo() { 
         try {

@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 
 import org.rutebanken.netex.model.CompositeFrame;
+import org.rutebanken.netex.model.GeneralFrame;
 import org.rutebanken.netex.model.Line;
 import org.rutebanken.netex.model.Line_VersionStructure;
 import org.rutebanken.netex.model.LinkSequence_VersionStructure;
+import org.rutebanken.netex.model.Network;
 import org.rutebanken.netex.model.PublicationDeliveryStructure;
 import org.rutebanken.netex.model.Quay;
 import org.rutebanken.netex.model.ResourceFrame;
@@ -17,6 +19,7 @@ import org.rutebanken.netex.model.ScheduledStopPoint;
 import org.rutebanken.netex.model.ServiceFrame;
 import org.rutebanken.netex.model.SiteFrame;
 import org.rutebanken.netex.model.StopPlace;
+import org.rutebanken.netex.model.TransportAdministrativeZone;
 import org.rutebanken.netex.model.TypeOfProductCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,22 +31,29 @@ import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.StNetexAdminZone;
+import nl.gertjanidema.netex.dataload.dto.StNetexAdminZoneRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 import nl.gertjanidema.netex.dataload.dto.StNetexLineRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
+import nl.gertjanidema.netex.dataload.dto.StNetexNetworkRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnJourneyRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexProductCategoryRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexQuayRepository;
-import nl.gertjanidema.netex.dataload.dto.StNetexResponsibleAreaRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexResponsibilitySetRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPointRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlaceRepository;
+import nl.gertjanidema.netex.dataload.processors.NetexAdminZoneProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexDeliveryProcesser;
 import nl.gertjanidema.netex.dataload.processors.NetexLineProcessor;
+import nl.gertjanidema.netex.dataload.processors.NetexNetworkProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexPointOnRouteProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexProductCategoryProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexQuayProcessor;
+import nl.gertjanidema.netex.dataload.processors.NetexResponsibilitySetProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexRouteProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexScheduledStopPointProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexStopPlaceProcessor;
@@ -56,33 +66,39 @@ public class NetexFileProcessor {
     private StNetexDelivery stDelivery;
 
     @Inject
-    StNetexQuayRepository quayRepository;
-    
-    @Inject
-    StNetexStopPlaceRepository stopPlaceRepository;
-    
-    @Inject
-    StNetexLineRepository lineRepository;
-    
-    @Inject
-    StNetexScheduledStopPointRepository scheduledStopPointRepository;
-    
-    @Inject
-    StNetexRouteRepository routeRepository;
-    
-    @Inject
-    StNetexPointOnRouteRepository pointOnRouteRepository;
-    
-    @Inject
-    StNetexPointOnJourneyRepository pointOnJourneyRepository;
-    
-    @Inject
-    StNetexResponsibleAreaRepository responsibleAreaRepository;
-    
-    @Inject
     StNetexProductCategoryRepository productCategoryRepository;
 
-    public StNetexDelivery processHeader(NetexFileInfo fileInfo) {
+    @Inject
+    StNetexResponsibilitySetRepository responsibilitySetRepository;
+
+    @Inject
+    StNetexNetworkRepository networkRepository;
+
+    @Inject
+    StNetexAdminZoneRepository adminZoneRepository;
+
+    @Inject
+    StNetexLineRepository lineRepository;
+
+    @Inject
+    StNetexRouteRepository routeRepository;
+
+    @Inject
+    StNetexPointOnRouteRepository pointOnRouteRepository;
+
+    @Inject
+    StNetexPointOnJourneyRepository pointOnJourneyRepository;
+
+    @Inject
+    StNetexScheduledStopPointRepository scheduledStopPointRepository;
+
+    @Inject
+    StNetexQuayRepository quayRepository;
+
+    @Inject
+    StNetexStopPlaceRepository stopPlaceRepository;
+
+    protected StNetexDelivery processHeader(NetexFileInfo fileInfo) {
         delivery = readFile(fileInfo.getCachedFile());
         stDelivery = NetexDeliveryProcesser.process(delivery, fileInfo);
         return stDelivery;
@@ -90,7 +106,16 @@ public class NetexFileProcessor {
     
     @Transactional
     public void processData() {
+        productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        adminZoneRepository.deleteByFileSetId(stDelivery.getFileSetId());
         lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        routeRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        pointOnRouteRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
         delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
             if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
                 processCompositeFrame((CompositeFrame) frameStructure.getValue());
@@ -110,7 +135,45 @@ public class NetexFileProcessor {
             else if (commonFrame.getDeclaredType().equals(SiteFrame.class)) {
                 processSiteFrame((SiteFrame)commonFrame.getValue());
             }
+            else if (commonFrame.getDeclaredType().equals(GeneralFrame.class)) {
+                processGeneralFrame((GeneralFrame)commonFrame.getValue());
+            }
         });
+    }
+
+    private void processGeneralFrame(GeneralFrame frame) {
+        frame.getMembers().getGeneralFrameMemberOrDataManagedObjectOrEntity_Entity().forEach(member -> {
+            if (member.getDeclaredType().isAssignableFrom(Network.class)) {
+                processNetwork((Network) member.getValue());
+            }
+            else if (member.getDeclaredType().isAssignableFrom(TransportAdministrativeZone.class)) {
+                processAdminZone((TransportAdministrativeZone) member.getValue());
+            }
+        });
+    }
+
+    private void processNetwork(Network network) {
+        StNetexNetwork stNetwork;
+        try {
+            stNetwork = NetexNetworkProcessor.process(network);
+            stNetwork.setFileSetId(stDelivery.getFileSetId());
+            networkRepository.save(stNetwork);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    private void processAdminZone(TransportAdministrativeZone adminZone) {
+        StNetexAdminZone stAdminZone;
+        try {
+            stAdminZone = NetexAdminZoneProcessor.process(adminZone);
+            stAdminZone.setFileSetId(stDelivery.getFileSetId());
+            adminZoneRepository.save(stAdminZone);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     private void processResourceFrame(ResourceFrame frame) {
@@ -120,6 +183,20 @@ public class NetexFileProcessor {
                     processProductCategory((TypeOfProductCategory)element.getValue());
                 }
             });
+        }
+        if (frame.getResponsibilitySets() != null) {
+            try {
+                for (var responsibilitySet :frame.getResponsibilitySets().getResponsibilitySet()) {
+                    if (responsibilitySet.getName() != null) {
+                        var netexResponsibilitySet = NetexResponsibilitySetProcessor.process(responsibilitySet);
+                        netexResponsibilitySet.setFileSetId(stDelivery.getFileSetId());
+                        responsibilitySetRepository.save(netexResponsibilitySet);
+                    }
+                }
+            } catch (Exception e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
 
@@ -135,21 +212,27 @@ public class NetexFileProcessor {
     }
 
     private void processServiceFrame(ServiceFrame frame) {
-        frame.getLines().getLine_().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
-            .forEach(line -> {
-                if (line instanceof Line) {
-                    processLine((Line) line);
-                }
-                else LOG.info("Unprocessed line type: {}", line.getClass().getName());
-            });
-        frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
-        frame.getRoutes().getRoute_().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
-            .forEach(linkSequence -> {
-                if (linkSequence instanceof Route) {
-                    processRoute((Route) linkSequence);
-                }
-                else LOG.info("Unprocessed route type: {}", linkSequence.getClass().getName());
-            });
+        if (frame.getLines() != null) {
+            frame.getLines().getLine_Dummy().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
+                .forEach(line -> {
+                    if (line instanceof Line) {
+                        processLine((Line) line);
+                    }
+                    else LOG.info("Unprocessed line type: {}", line.getClass().getName());
+                });
+        }
+        if (frame.getScheduledStopPoints() != null) {
+            frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
+        }
+        if (frame.getRoutes() != null) {
+            frame.getRoutes().getRoute_Dummy().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
+                .forEach(linkSequence -> {
+                    if (linkSequence instanceof Route) {
+                        processRoute((Route) linkSequence);
+                    }
+                    else LOG.info("Unprocessed route type: {}", linkSequence.getClass().getName());
+                });
+        }
     }
 
     private void processScheduledStopPoint(ScheduledStopPoint stopPoint) {
@@ -189,10 +272,11 @@ public class NetexFileProcessor {
     }
     
     private void processSiteFrame(SiteFrame frame) {
-        frame.getStopPlaces().getStopPlace_().stream()
-            .map(JAXBElement::getValue)
-            .map(StopPlace.class::cast)
-            .forEach(this::processStopPlace);
+        if (frame.getStopPlaces() != null) {
+            frame.getStopPlaces().getStopPlace().stream()
+                .map(StopPlace.class::cast)
+                .forEach(this::processStopPlace);
+        }
     }
     
     private void processQuay(Quay quay, StNetexStopPlace netexStopPlace) {
@@ -228,9 +312,9 @@ public class NetexFileProcessor {
             var streamReader = new GZIPInputStream(is);
         ) {
             var context = JAXBContext.newInstance(PublicationDeliveryStructure.class);
+            var unmarshaller = context.createUnmarshaller();
             @SuppressWarnings("unchecked")
-            var delivery = ((JAXBElement<PublicationDeliveryStructure>)context.createUnmarshaller()
-                    .unmarshal(streamReader))
+            var delivery = ((JAXBElement<PublicationDeliveryStructure>)unmarshaller.unmarshal(streamReader))
                     .getValue();
             return delivery;
         } catch (JAXBException | IOException e) {
@@ -239,6 +323,7 @@ public class NetexFileProcessor {
         }
     }
     
+    @SuppressWarnings("exports")
     public StNetexDelivery getStDelivery() {
         return stDelivery;
     }

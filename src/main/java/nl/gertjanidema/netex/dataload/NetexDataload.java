@@ -5,6 +5,9 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,19 +24,37 @@ public class NetexDataload {
     @Inject NdovService ndovService;
     @Inject StNetexDeliveryRepository deliveryRepository;
     @Inject FileProcessorFactory fileProcessorFactory;
+    @Inject JobRegistry jobRegistry;
+    @Inject JobLauncher jobLauncher;
     
-    public void run() {
+    public void run(boolean refreshFiles) {
+        if (refreshFiles) {
+            try {
+                var newNetexFiles = ndovService.checkForNewNetexFiles();
+                // Cache the requested netex files
+                var files = ndovService.downloadNetexFiles(newNetexFiles);
+                files.forEach(file -> {
+                    if (file.getFileSetId().toLowerCase().contains("vehicles")) {
+                        LOG.info("Ignoring file {}.", file.getFileName());
+                    }
+                    else {
+                        LOG.info("Processing file {}.", file.getFileName());
+                       processFile(file);
+                    }
+                });
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
         try {
-            var newNetexFiles = ndovService.checkForNewNetexFiles();
-            // Cache the requested netex files
-            var files = ndovService.downloadNetexFiles(newNetexFiles);
-            files.forEach(file -> {
-                LOG.info("Processing file {}.", file.getFileName());
-                processFile(file);
-            });
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            var parameters = new JobParametersBuilder()
+                .addString("JobID", String.valueOf(System.currentTimeMillis()))
+                .toJobParameters();
+            var job = jobRegistry.getJob("netexEtlUpdateJob");
+            jobLauncher.run(job, parameters);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
     
