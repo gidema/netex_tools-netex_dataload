@@ -34,8 +34,13 @@ public class NetexDataload {
                 // Cache the requested netex files
                 var files = ndovService.downloadNetexFiles(newNetexFiles);
                 files.forEach(file -> {
-                    LOG.info("Processing file {}.", file.getFileName());
-                    processFile(file);
+                    if (file.getFileSetId().toLowerCase().contains("vehicles")) {
+                        LOG.info("Ignoring file {}.", file.getFileName());
+                    }
+                    else {
+                        LOG.info("Processing file {}.", file.getFileName());
+                       processFile(file);
+                    }
                 });
             } catch (IOException e) {
                 // TODO Auto-generated catch block
