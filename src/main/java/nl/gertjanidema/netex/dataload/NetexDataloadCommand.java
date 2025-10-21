@@ -11,12 +11,10 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
-@ComponentScan(basePackages = { "nl.gertjanidema.netex.dataload" },
-excludeFilters = { @ComponentScan.Filter(type = FilterType.ASPECTJ, pattern = "nl.gertjanidema.netex.dataload.jobs.*")})
+@ComponentScan(basePackages = { "nl.gertjanidema.netex.dataload" })
 @EnableJpaRepositories(basePackages = "nl.gertjanidema.netex.dataload.dto")
 @EntityScan("nl.gertjanidema.netex.dataload.dto")
 public class NetexDataloadCommand implements ApplicationRunner {
