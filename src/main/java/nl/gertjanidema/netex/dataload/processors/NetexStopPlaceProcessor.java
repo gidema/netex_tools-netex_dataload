@@ -10,7 +10,14 @@ public class NetexStopPlaceProcessor extends AbstractNetexProcessor {
         netexStopPlace.setId(stopPlace.getId());
         netexStopPlace.setVersion(stopPlace.getVersion());
         netexStopPlace.setName(toString(stopPlace.getName()));
-        netexStopPlace.setPrivateCode(stopPlace.getPrivateCode().getValue());
+        if (stopPlace.getPrivateCode() != null) {
+            netexStopPlace.setPrivateCode(stopPlace.getPrivateCode().getValue());
+        }
+        else if (stopPlace.getPrivateCodes() != null) {
+            stopPlace.getPrivateCodes().getPrivateCode().forEach(code -> {
+                netexStopPlace.setPrivateCode(code.getValue());
+            });
+        }
         if (stopPlace.getCentroid() != null) {
             var location = stopPlace.getCentroid().getLocation();
             netexStopPlace.setX(getX(location));

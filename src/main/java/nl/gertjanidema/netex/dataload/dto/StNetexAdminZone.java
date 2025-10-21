@@ -10,10 +10,11 @@ import lombok.Setter;
 @Table(schema = "netex")
 @Getter
 @Setter
-public class StNetexResponsibilitySet {
+public class StNetexAdminZone {
     @Id
     private String id;
     private String name;
-    private String administrativeZone;
+    private String shortName;
+    private String description;
     private String fileSetId;
 }

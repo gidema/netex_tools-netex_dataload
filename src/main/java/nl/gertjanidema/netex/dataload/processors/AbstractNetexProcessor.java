@@ -9,10 +9,12 @@ public abstract class AbstractNetexProcessor {
     }
     
     static double getX(LocationStructure locationStructure) {
+        if (locationStructure == null) return 0;
         return locationStructure.getPos().getValue().get(0).doubleValue();
     }
     
     static double getY(LocationStructure locationStructure) {
+        if (locationStructure == null) return 0;
         return locationStructure.getPos().getValue().get(1).doubleValue();
     }
 }

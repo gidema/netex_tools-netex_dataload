@@ -19,6 +19,7 @@ import org.rutebanken.netex.model.ScheduledStopPoint;
 import org.rutebanken.netex.model.ServiceFrame;
 import org.rutebanken.netex.model.SiteFrame;
 import org.rutebanken.netex.model.StopPlace;
+import org.rutebanken.netex.model.TransportAdministrativeZone;
 import org.rutebanken.netex.model.TypeOfProductCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +30,9 @@ import jakarta.inject.Inject;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.StNetexAdminZone;
+import nl.gertjanidema.netex.dataload.dto.StNetexAdminZoneRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 import nl.gertjanidema.netex.dataload.dto.StNetexLineRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
@@ -44,6 +46,7 @@ import nl.gertjanidema.netex.dataload.dto.StNetexRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPointRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlaceRepository;
+import nl.gertjanidema.netex.dataload.processors.NetexAdminZoneProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexDeliveryProcesser;
 import nl.gertjanidema.netex.dataload.processors.NetexLineProcessor;
 import nl.gertjanidema.netex.dataload.processors.NetexNetworkProcessor;
@@ -70,6 +73,9 @@ public class NetexFileProcessor {
 
     @Inject
     StNetexNetworkRepository networkRepository;
+
+    @Inject
+    StNetexAdminZoneRepository adminZoneRepository;
 
     @Inject
     StNetexLineRepository lineRepository;
@@ -103,13 +109,13 @@ public class NetexFileProcessor {
         productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
         responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
         networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        adminZoneRepository.deleteByFileSetId(stDelivery.getFileSetId());
         lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
         routeRepository.deleteByFileSetId(stDelivery.getFileSetId());
         pointOnRouteRepository.deleteByFileSetId(stDelivery.getFileSetId());
         pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
         stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
         quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        JAXBElement<?> el;
         delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
             if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
                 processCompositeFrame((CompositeFrame) frameStructure.getValue());
@@ -140,6 +146,9 @@ public class NetexFileProcessor {
             if (member.getDeclaredType().isAssignableFrom(Network.class)) {
                 processNetwork((Network) member.getValue());
             }
+            else if (member.getDeclaredType().isAssignableFrom(TransportAdministrativeZone.class)) {
+                processAdminZone((TransportAdministrativeZone) member.getValue());
+            }
         });
     }
 
@@ -147,13 +156,26 @@ public class NetexFileProcessor {
         StNetexNetwork stNetwork;
         try {
             stNetwork = NetexNetworkProcessor.process(network);
-            stNetwork.setFileSetId(null);
+            stNetwork.setFileSetId(stDelivery.getFileSetId());
             networkRepository.save(stNetwork);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
+
+    private void processAdminZone(TransportAdministrativeZone adminZone) {
+        StNetexAdminZone stAdminZone;
+        try {
+            stAdminZone = NetexAdminZoneProcessor.process(adminZone);
+            stAdminZone.setFileSetId(stDelivery.getFileSetId());
+            adminZoneRepository.save(stAdminZone);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
     private void processResourceFrame(ResourceFrame frame) {
         if (frame.getTypesOfValue() != null) {
             frame.getTypesOfValue().getValueSetOrTypeOfValue().forEach(element -> {
@@ -190,21 +212,27 @@ public class NetexFileProcessor {
     }
 
     private void processServiceFrame(ServiceFrame frame) {
-        frame.getLines().getLine_Dummy().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
-            .forEach(line -> {
-                if (line instanceof Line) {
-                    processLine((Line) line);
-                }
-                else LOG.info("Unprocessed line type: {}", line.getClass().getName());
-            });
-        frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
-        frame.getRoutes().getRoute_Dummy().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
-            .forEach(linkSequence -> {
-                if (linkSequence instanceof Route) {
-                    processRoute((Route) linkSequence);
-                }
-                else LOG.info("Unprocessed route type: {}", linkSequence.getClass().getName());
-            });
+        if (frame.getLines() != null) {
+            frame.getLines().getLine_Dummy().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
+                .forEach(line -> {
+                    if (line instanceof Line) {
+                        processLine((Line) line);
+                    }
+                    else LOG.info("Unprocessed line type: {}", line.getClass().getName());
+                });
+        }
+        if (frame.getScheduledStopPoints() != null) {
+            frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
+        }
+        if (frame.getRoutes() != null) {
+            frame.getRoutes().getRoute_Dummy().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
+                .forEach(linkSequence -> {
+                    if (linkSequence instanceof Route) {
+                        processRoute((Route) linkSequence);
+                    }
+                    else LOG.info("Unprocessed route type: {}", linkSequence.getClass().getName());
+                });
+        }
     }
 
     private void processScheduledStopPoint(ScheduledStopPoint stopPoint) {

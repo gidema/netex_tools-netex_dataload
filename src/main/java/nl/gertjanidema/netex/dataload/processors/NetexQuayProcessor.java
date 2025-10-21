@@ -14,8 +14,9 @@ public class NetexQuayProcessor extends AbstractNetexProcessor {
         netexQuay.setName(toString(quay.getName()));
         if (quay.getCentroid() != null) {
             var location = quay.getCentroid().getLocation();
-            netexQuay.setX(location.getLongitude().doubleValue());
-            netexQuay.setY(location.getLatitude().doubleValue());
+            var it = location.getPos().getValue().iterator();
+            netexQuay.setX(it.next().doubleValue());
+            netexQuay.setY(it.next().doubleValue());
         }
         return netexQuay;
     }
