@@ -275,9 +275,9 @@ INSERT INTO netex.netex_route_variant_quay(
     private final static String update_netex_route_variant_data_sql = """
 TRUNCATE TABLE netex.netex_route_variant_data;
 INSERT INTO netex.netex_route_variant_data (line_number, variant_id, line_ref, direction_type, quay_list, stop_place_list, quay_count)
-SELECT nrd.line_number, nrv.id, nrd.line_ref, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count
+SELECT nrd.line_number, nr.variant_id, nrd.line_ref, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count
 FROM netex.netex_route_data nrd
-JOIN netex.netex_route_variant nrv ON nrd.route_id = nrv.route_refs[1]
+JOIN netex.netex_route nr ON nrd.route_id = nr.id
 """;
     
     private final static String update_netex_line_stop_place_sql = """
