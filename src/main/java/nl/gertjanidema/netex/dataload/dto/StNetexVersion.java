@@ -1,5 +1,7 @@
 package nl.gertjanidema.netex.dataload.dto;
 
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.BatchSize;
 
 import jakarta.persistence.Entity;
@@ -14,28 +16,20 @@ import lombok.Setter;
 
 @Entity
 @Table(schema = "netex")
-@BatchSize(size=100)
+@BatchSize(size=10)
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class StNetexLine {
+public class StNetexVersion {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
     @Include
     private String netexId;
-    @Include
+    private String modification;
     private String version;
-    private String responsibilitySetRef;
-    private String name;
-    private String brandingRef;
-    private String directionType;
-    private String productCategoryRef;
-    private String transportMode;
-    private String publicCode;
-    private String privateCode;
-    private String colour;
-    private String textColour;
-    private boolean mobilityImpairedAccess;
+    private String versionType;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
     private String fileSetId;
 }

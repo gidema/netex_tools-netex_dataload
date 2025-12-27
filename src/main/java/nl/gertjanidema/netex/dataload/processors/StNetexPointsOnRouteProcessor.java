@@ -5,11 +5,12 @@ import java.util.List;
 import java.util.Objects;
 
 import org.rutebanken.netex.model.Route;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRoute;
 
-public class NetexPointOnRouteProcessor {
-
+@Component
+public class StNetexPointsOnRouteProcessor {
     public static List<StNetexPointOnRoute> process(Route route) throws Exception {
         var routeId = route.getId();
         var pointsInSequence = route.getPointsInSequence();
@@ -19,7 +20,8 @@ public class NetexPointOnRouteProcessor {
         pointsOnRoute.forEach(por -> {
             var stPor = new StNetexPointOnRoute();
             stPor.setRouteId(routeId);
-            stPor.setPointOnRouteId(por.getId());
+            stPor.setVersion(route.getVersion());
+            stPor.setNetexId(por.getId());
             stPor.setRoutePointRef(por.getPointRef().getValue().getRef());
             // TODO Log when getOrder is null
             stPor.setSequence(Objects.requireNonNullElse(por.getOrder(), 0).intValue());
@@ -27,5 +29,4 @@ public class NetexPointOnRouteProcessor {
         });
         return stPoints;
     }
-
 }

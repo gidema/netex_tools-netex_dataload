@@ -1,15 +1,17 @@
 package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.Quay;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexQuay;
-import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
 
-public class NetexQuayProcessor extends AbstractNetexProcessor {
-    public static StNetexQuay process(Quay quay, StNetexStopPlace stopPlace) throws Exception {
+@Component
+public class StNetexQuayProcessor extends AbstractItemProcessor implements ItemProcessor<Quay, StNetexQuay> {
+    @Override
+    public StNetexQuay process(Quay quay) throws Exception {
         var netexQuay = new StNetexQuay();
-        netexQuay.setId(quay.getId());
-        netexQuay.setStopPlaceId(stopPlace.getId());
+        netexQuay.setNetexId(quay.getId());
         netexQuay.setVersion(quay.getVersion());
         netexQuay.setName(toString(quay.getName()));
         if (quay.getCentroid() != null) {

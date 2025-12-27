@@ -3,6 +3,8 @@ package nl.gertjanidema.netex.dataload;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 
 import org.rutebanken.netex.model.CompositeFrame;
@@ -12,7 +14,6 @@ import org.rutebanken.netex.model.Line_VersionStructure;
 import org.rutebanken.netex.model.LinkSequence_VersionStructure;
 import org.rutebanken.netex.model.Network;
 import org.rutebanken.netex.model.PublicationDeliveryStructure;
-import org.rutebanken.netex.model.Quay;
 import org.rutebanken.netex.model.ResourceFrame;
 import org.rutebanken.netex.model.Route;
 import org.rutebanken.netex.model.ScheduledStopPoint;
@@ -30,133 +31,122 @@ import jakarta.inject.Inject;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
-import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.NdovNetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexAdminZone;
 import nl.gertjanidema.netex.dataload.dto.StNetexAdminZoneRepository;
-import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 import nl.gertjanidema.netex.dataload.dto.StNetexLineRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
 import nl.gertjanidema.netex.dataload.dto.StNetexNetworkRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnJourneyRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRoute;
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexProductCategoryRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexQuayRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexResponsibilitySetRepository;
+import nl.gertjanidema.netex.dataload.dto.StNetexRoute;
 import nl.gertjanidema.netex.dataload.dto.StNetexRouteRepository;
 import nl.gertjanidema.netex.dataload.dto.StNetexScheduledStopPointRepository;
-import nl.gertjanidema.netex.dataload.dto.StNetexStopPlace;
 import nl.gertjanidema.netex.dataload.dto.StNetexStopPlaceRepository;
-import nl.gertjanidema.netex.dataload.processors.NetexAdminZoneProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexDeliveryProcesser;
-import nl.gertjanidema.netex.dataload.processors.NetexLineProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexNetworkProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexPointOnRouteProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexProductCategoryProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexQuayProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexResponsibilitySetProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexRouteProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexScheduledStopPointProcessor;
-import nl.gertjanidema.netex.dataload.processors.NetexStopPlaceProcessor;
+import nl.gertjanidema.netex.dataload.ndov.NdovSession;
+import nl.gertjanidema.netex.dataload.processors.StNetexAdminZoneProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexLineProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexNetworkProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexPointOnRouteProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexProductCategoryProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexResponsibilitySetProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexRouteProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexScheduledStopPointProcessor;
+import nl.gertjanidema.netex.dataload.processors.StNetexStopPlaceProcessor;
 
 @Component
 public class NetexFileProcessor {
     private static Logger LOG = LoggerFactory.getLogger(NetexFileProcessor.class);
 
-    private PublicationDeliveryStructure delivery;
-    private StNetexDelivery stDelivery;
+//    private PublicationDeliveryStructure delivery;
+//    private StNetexDelivery stDelivery;
 
-    @Inject
-    StNetexProductCategoryRepository productCategoryRepository;
-
-    @Inject
-    StNetexResponsibilitySetRepository responsibilitySetRepository;
-
-    @Inject
-    StNetexNetworkRepository networkRepository;
-
-    @Inject
-    StNetexAdminZoneRepository adminZoneRepository;
-
-    @Inject
-    StNetexLineRepository lineRepository;
-
-    @Inject
-    StNetexRouteRepository routeRepository;
-
-    @Inject
-    StNetexPointOnRouteRepository pointOnRouteRepository;
-
-    @Inject
-    StNetexPointOnJourneyRepository pointOnJourneyRepository;
-
-    @Inject
-    StNetexScheduledStopPointRepository scheduledStopPointRepository;
-
-    @Inject
-    StNetexQuayRepository quayRepository;
-
-    @Inject
-    StNetexStopPlaceRepository stopPlaceRepository;
-
-    protected StNetexDelivery processHeader(NetexFileInfo fileInfo) {
-        delivery = readFile(fileInfo.getCachedFile());
-        stDelivery = NetexDeliveryProcesser.process(delivery, fileInfo);
-        return stDelivery;
-    }
+    @Inject StNetexProductCategoryRepository productCategoryRepository;
+    @Inject StNetexResponsibilitySetRepository responsibilitySetRepository;
+    @Inject StNetexNetworkRepository networkRepository;
+    @Inject StNetexAdminZoneRepository adminZoneRepository;
+    @Inject StNetexLineRepository lineRepository;
+    @Inject StNetexRouteRepository routeRepository;
+    @Inject StNetexPointOnRouteRepository pointOnRouteRepository;
+    @Inject StNetexPointOnJourneyRepository pointOnJourneyRepository;
+    @Inject StNetexScheduledStopPointRepository scheduledStopPointRepository;
+    @Inject StNetexQuayRepository quayRepository;
+    @Inject StNetexStopPlaceRepository stopPlaceRepository;
+    
+    @Inject StNetexStopPlaceProcessor stopPlaceProcessor;
+    @Inject StNetexNetworkProcessor networkProcessor;
+    @Inject StNetexAdminZoneProcessor adminZoneProcessor;
+    @Inject StNetexResponsibilitySetProcessor responsibilitySetProcessor;
+    @Inject StNetexProductCategoryProcessor productCategoryProcessor;
+    @Inject StNetexScheduledStopPointProcessor scheduledStopPointProcessor;
+    @Inject StNetexRouteProcessor routeProcessor;
+    @Inject StNetexPointOnRouteProcessor pointOnRouteProcessor;
+    @Inject StNetexLineProcessor lineProcessor;
     
     @Transactional
-    public void processData() {
-        productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        adminZoneRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        routeRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        pointOnRouteRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
-        delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
-            if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
-                processCompositeFrame((CompositeFrame) frameStructure.getValue());
-            }
-        });
+    public void processData(NdovNetexFileInfo fileInfo, NdovSession session) {
+//        productCategoryRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        responsibilitySetRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        networkRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        adminZoneRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        lineRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        routeRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        pointOnRouteRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        pointOnJourneyRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        stopPlaceRepository.deleteByFileSetId(stDelivery.getFileSetId());
+//        quayRepository.deleteByFileSetId(stDelivery.getFileSetId());
+        File file;
+        try {
+            file = session.getFile(Path.of(fileInfo.getDirectory()), fileInfo.getFileName());
+            var delivery = readFile(file);
+            delivery.getDataObjects().getCompositeFrameOrCommonFrame().forEach(frameStructure -> {
+                if (frameStructure.getDeclaredType().equals(CompositeFrame.class)) {
+                    processCompositeFrame((CompositeFrame) frameStructure.getValue(), fileInfo.getFileSetId());
+                }
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private void processCompositeFrame(CompositeFrame compositeFrame) {
+    private void processCompositeFrame(CompositeFrame compositeFrame, String fileSetId) {
         if (compositeFrame.getFrames() == null) return;
         compositeFrame.getFrames().getCommonFrame().forEach(commonFrame -> {
             if (commonFrame.getDeclaredType().equals(ResourceFrame.class)) {
-                processResourceFrame((ResourceFrame)commonFrame.getValue());
+                processResourceFrame((ResourceFrame)commonFrame.getValue(), fileSetId);
             }
             else if (commonFrame.getDeclaredType().equals(ServiceFrame.class)) {
-                processServiceFrame((ServiceFrame)commonFrame.getValue());
+                processServiceFrame((ServiceFrame)commonFrame.getValue(), fileSetId);
             }
             else if (commonFrame.getDeclaredType().equals(SiteFrame.class)) {
-                processSiteFrame((SiteFrame)commonFrame.getValue());
+                processSiteFrame((SiteFrame)commonFrame.getValue(), fileSetId);
             }
             else if (commonFrame.getDeclaredType().equals(GeneralFrame.class)) {
-                processGeneralFrame((GeneralFrame)commonFrame.getValue());
+                processGeneralFrame((GeneralFrame)commonFrame.getValue(), fileSetId);
             }
         });
     }
 
-    private void processGeneralFrame(GeneralFrame frame) {
+    private void processGeneralFrame(GeneralFrame frame, String fileSetId) {
         frame.getMembers().getGeneralFrameMemberOrDataManagedObjectOrEntity_Entity().forEach(member -> {
             if (member.getDeclaredType().isAssignableFrom(Network.class)) {
-                processNetwork((Network) member.getValue());
+                processNetwork((Network) member.getValue(), fileSetId);
             }
             else if (member.getDeclaredType().isAssignableFrom(TransportAdministrativeZone.class)) {
-                processAdminZone((TransportAdministrativeZone) member.getValue());
+                processAdminZone((TransportAdministrativeZone) member.getValue(), fileSetId);
             }
         });
     }
 
-    private void processNetwork(Network network) {
+    private void processNetwork(Network network, String fileSetId) {
         StNetexNetwork stNetwork;
         try {
-            stNetwork = NetexNetworkProcessor.process(network);
-            stNetwork.setFileSetId(stDelivery.getFileSetId());
+            stNetwork = networkProcessor.process(network);
+            stNetwork.setFileSetId(fileSetId);
             networkRepository.save(stNetwork);
         } catch (Exception e) {
             // TODO Auto-generated catch block
@@ -164,11 +154,11 @@ public class NetexFileProcessor {
         }
     }
 
-    private void processAdminZone(TransportAdministrativeZone adminZone) {
+    private void processAdminZone(TransportAdministrativeZone adminZone, String fileSetId) {
         StNetexAdminZone stAdminZone;
         try {
-            stAdminZone = NetexAdminZoneProcessor.process(adminZone);
-            stAdminZone.setFileSetId(stDelivery.getFileSetId());
+            stAdminZone = adminZoneProcessor.process(adminZone);
+            stAdminZone.setFileSetId(fileSetId);
             adminZoneRepository.save(stAdminZone);
         } catch (Exception e) {
             // TODO Auto-generated catch block
@@ -176,11 +166,11 @@ public class NetexFileProcessor {
         }
     }
 
-    private void processResourceFrame(ResourceFrame frame) {
+    private void processResourceFrame(ResourceFrame frame, String fileSetId) {
         if (frame.getTypesOfValue() != null) {
             frame.getTypesOfValue().getValueSetOrTypeOfValue().forEach(element -> {
                 if (element.getDeclaredType().equals(TypeOfProductCategory.class)) {
-                    processProductCategory((TypeOfProductCategory)element.getValue());
+                    processProductCategory((TypeOfProductCategory)element.getValue(), fileSetId);
                 }
             });
         }
@@ -188,8 +178,8 @@ public class NetexFileProcessor {
             try {
                 for (var responsibilitySet :frame.getResponsibilitySets().getResponsibilitySet()) {
                     if (responsibilitySet.getName() != null) {
-                        var netexResponsibilitySet = NetexResponsibilitySetProcessor.process(responsibilitySet);
-                        netexResponsibilitySet.setFileSetId(stDelivery.getFileSetId());
+                        var netexResponsibilitySet = responsibilitySetProcessor.process(responsibilitySet);
+                        netexResponsibilitySet.setFileSetId(fileSetId);
                         responsibilitySetRepository.save(netexResponsibilitySet);
                     }
                 }
@@ -200,10 +190,10 @@ public class NetexFileProcessor {
         }
     }
 
-    private void processProductCategory(TypeOfProductCategory productCategory) {
+    private void processProductCategory(TypeOfProductCategory productCategory, String fileSetId) {
         try {
-            var netexProductCategory = NetexProductCategoryProcessor.process(productCategory);
-            netexProductCategory.setFileSetId(stDelivery.getFileSetId());
+            var netexProductCategory = productCategoryProcessor.process(productCategory);
+            netexProductCategory.setFileSetId(fileSetId);
             productCategoryRepository.save(netexProductCategory);
         } catch (Exception e) {
             // TODO Auto-generated catch block
@@ -211,101 +201,111 @@ public class NetexFileProcessor {
         }
     }
 
-    private void processServiceFrame(ServiceFrame frame) {
+    private void processServiceFrame(ServiceFrame frame, String fileSetId) {
         if (frame.getLines() != null) {
             frame.getLines().getLine_Dummy().stream().map(JAXBElement::getValue).map(Line_VersionStructure.class::cast)
                 .forEach(line -> {
                     if (line instanceof Line) {
-                        processLine((Line) line);
+                        processLine((Line) line, fileSetId);
                     }
                     else LOG.info("Unprocessed line type: {}", line.getClass().getName());
                 });
         }
         if (frame.getScheduledStopPoints() != null) {
-            frame.getScheduledStopPoints().getScheduledStopPoint().stream().forEach(this::processScheduledStopPoint);
+            frame.getScheduledStopPoints().getScheduledStopPoint().stream()
+                .forEach(ssp -> processScheduledStopPoint(ssp, fileSetId));
         }
         if (frame.getRoutes() != null) {
             frame.getRoutes().getRoute_Dummy().stream().map(JAXBElement::getValue).map(LinkSequence_VersionStructure.class::cast)
                 .forEach(linkSequence -> {
                     if (linkSequence instanceof Route) {
-                        processRoute((Route) linkSequence);
+                        processRoute((Route) linkSequence, fileSetId);
                     }
                     else LOG.info("Unprocessed route type: {}", linkSequence.getClass().getName());
                 });
         }
     }
 
-    private void processScheduledStopPoint(ScheduledStopPoint stopPoint) {
+    private void processScheduledStopPoint(ScheduledStopPoint stopPoint, String fileSetId) {
         try {
-            var netexStopPoint = NetexScheduledStopPointProcessor.process(stopPoint);
-            netexStopPoint.setFileSetId(stDelivery.getFileSetId());
+            var netexStopPoint = scheduledStopPointProcessor.process(stopPoint);
+            netexStopPoint.setFileSetId(fileSetId);
             scheduledStopPointRepository.save(netexStopPoint);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
-    
-    private void processRoute(Route route) {
+
+    private void processRoute(Route route, String fileSetId) {
         try {
-            var netexRoute = NetexRouteProcessor.process(route);
-            netexRoute.setFileSetId(stDelivery.getFileSetId());
+            var netexRoute = routeProcessor.process(route);
+            netexRoute.setFileSetId(fileSetId);
             routeRepository.save(netexRoute);
-            var pointsOnRoute = NetexPointOnRouteProcessor.process(route);
-            pointsOnRoute.forEach(point->point.setFileSetId(stDelivery.getFileSetId()));
-            pointOnRouteRepository.saveAll(pointsOnRoute);
+            processPointOnRoute(route, netexRoute, fileSetId);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
-    
-    private void processLine(Line line) {
+
+    private void processPointOnRoute(Route route, StNetexRoute netexRoute, String fileSetId) {
         try {
-            var netexLine = NetexLineProcessor.process(line);
-            netexLine.setFileSetId(stDelivery.getFileSetId());
+            var pointsInSequence = route.getPointsInSequence();
+            if (pointsInSequence != null) {
+              var pointsOnRoute = route.getPointsInSequence().getPointOnRoute();
+              var stPoints = new ArrayList<StNetexPointOnRoute>(pointsOnRoute.size());
+              pointsOnRoute.forEach(por -> {
+                StNetexPointOnRoute nPor;
+                try {
+                    nPor = pointOnRouteProcessor.process(por);
+                    nPor.setFileSetId(fileSetId);
+                    nPor.setNetexRouteId(netexRoute.getNetexId());
+                    stPoints.add(nPor);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+              });
+            pointOnRouteRepository.saveAll(stPoints);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void processLine(Line line, String fileSetId) {
+        try {
+            var netexLine = lineProcessor.process(line);
+            netexLine.setFileSetId(fileSetId);
             lineRepository.save(netexLine);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
-    
-    private void processSiteFrame(SiteFrame frame) {
+
+    private void processSiteFrame(SiteFrame frame, String fileSetId) {
         if (frame.getStopPlaces() != null) {
             frame.getStopPlaces().getStopPlace().stream()
                 .map(StopPlace.class::cast)
-                .forEach(this::processStopPlace);
+                .forEach(sp -> processStopPlace(sp, fileSetId));
         }
     }
-    
-    private void processQuay(Quay quay, StNetexStopPlace netexStopPlace) {
+
+    private void processStopPlace(StopPlace stopPlace, String fileSetId) {
         try {
-            var netexQuay = NetexQuayProcessor.process(quay, netexStopPlace);
-            netexQuay.setFileSetId(stDelivery.getFileSetId());
-            quayRepository.save(netexQuay);
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
-    
-    private void processStopPlace(StopPlace stopPlace) {
-        try {
-            var netexStopPlace = NetexStopPlaceProcessor.process(stopPlace);
-            netexStopPlace.setFileSetId(stDelivery.getFileSetId());
-            stopPlaceRepository.save(netexStopPlace);
-            stopPlace.getQuays().getQuayRefOrQuay().forEach(quayRefOrQuay -> {
-                if (quayRefOrQuay.getDeclaredType() == Quay.class) {
-                    processQuay((Quay) quayRefOrQuay.getValue(), netexStopPlace);
-                }
+            var netexStopPlace = stopPlaceProcessor.process(stopPlace);
+            netexStopPlace.setFileSetId(fileSetId);
+            netexStopPlace.getQuays().forEach(quay -> {
+                quay.setFileSetId(fileSetId);
             });
+            stopPlaceRepository.save(netexStopPlace);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
-    
+
     private static PublicationDeliveryStructure readFile(File netexFile) {
         try (
             var is = new FileInputStream(netexFile);
@@ -321,10 +321,5 @@ public class NetexFileProcessor {
             // TODO Auto-generated catch block
             throw new RuntimeException(e);
         }
-    }
-    
-    @SuppressWarnings("exports")
-    public StNetexDelivery getStDelivery() {
-        return stDelivery;
     }
 }

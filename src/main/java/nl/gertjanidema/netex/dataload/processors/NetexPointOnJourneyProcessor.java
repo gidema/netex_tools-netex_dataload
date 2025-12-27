@@ -8,9 +8,11 @@ import org.rutebanken.netex.model.PointInJourneyPattern;
 import org.rutebanken.netex.model.ServiceJourneyPattern;
 import org.rutebanken.netex.model.StopPointInJourneyPattern;
 import org.rutebanken.netex.model.TimingPointInJourneyPattern;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexPointOnJourney;
 
+@Component
 public class NetexPointOnJourneyProcessor {
 
     public static List<StNetexPointOnJourney> process(ServiceJourneyPattern journey) throws Exception {
@@ -24,7 +26,8 @@ public class NetexPointOnJourneyProcessor {
             var stPoj = new StNetexPointOnJourney();
             stPoj.setJourneyId(journeyId);
             stPoj.setRouteId(routeId);
-            stPoj.setPointOnJourneyId(poj.getId());
+            stPoj.setNetexId(poj.getId());
+            stPoj.setVersion(poj.getVersion());
             // TODO Log when getOrder is null
             stPoj.setSequence(Objects.requireNonNullElse(poj.getOrder(), 0).intValue());
             if (poj instanceof StopPointInJourneyPattern) {

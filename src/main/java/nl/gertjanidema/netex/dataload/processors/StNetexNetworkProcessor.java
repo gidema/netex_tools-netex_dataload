@@ -1,14 +1,19 @@
 package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.Network;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexNetwork;
 
-public class NetexNetworkProcessor extends AbstractNetexProcessor {
+@Component
+public class StNetexNetworkProcessor extends AbstractItemProcessor implements ItemProcessor<Network, StNetexNetwork> {
  
-    public static StNetexNetwork process(Network network) throws Exception {
+    @Override
+    public StNetexNetwork process(Network network) throws Exception {
         var netexNetwork = new StNetexNetwork();
-        netexNetwork.setId(network.getId());
+        netexNetwork.setNetexId(network.getId());
+        netexNetwork.setVersion(network.getVersion());
         var validBetween = network.getValidBetween();
         if (validBetween != null && validBetween.size() > 0) {
             netexNetwork.setFromDate(network.getValidBetween().get(0).getFromDate());

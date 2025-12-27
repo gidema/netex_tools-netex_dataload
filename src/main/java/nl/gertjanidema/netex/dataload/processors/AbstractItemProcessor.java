@@ -2,9 +2,11 @@ package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.LocationStructure;
 import org.rutebanken.netex.model.MultilingualString;
+import org.springframework.stereotype.Component;
 
-public abstract class AbstractNetexProcessor {
-    static String toString(MultilingualString mlString) {
+@Component
+public abstract class AbstractItemProcessor {
+    public static String toString(MultilingualString mlString) {
         return (mlString == null ? null : mlString.getContent().get(0).toString());
     }
     

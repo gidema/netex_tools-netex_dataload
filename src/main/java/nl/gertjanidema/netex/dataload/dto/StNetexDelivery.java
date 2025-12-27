@@ -6,6 +6,8 @@ import java.time.OffsetDateTime;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
+import lombok.EqualsAndHashCode.Include;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,14 +15,16 @@ import lombok.Setter;
 @Table(schema="netex")
 @Getter
 @Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class StNetexDelivery {
     @Id
-    String fileSetId;
-    String filename;
-    LocalDateTime publicationTimestamp;
-    OffsetDateTime downloadTimestamp;
-    String participantRef;
-    String description;
-    LocalDateTime baselineStartDate;
-    LocalDateTime baselineEndDate;
+    @Include
+    private String fileSetId;
+    private String filename;
+    private LocalDateTime publicationTimestamp;
+    private OffsetDateTime downloadTimestamp;
+    private String participantRef;
+    private String description;
+    private LocalDateTime baselineStartDate;
+    private LocalDateTime baselineEndDate;
 }

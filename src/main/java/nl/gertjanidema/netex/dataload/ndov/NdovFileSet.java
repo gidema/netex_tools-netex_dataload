@@ -4,16 +4,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.NdovNetexFileInfo;
 
-public class NetexFileSet {
-    private String ndovSourceId;
+public class NdovFileSet {
     private String fileSetId;
-    private List<NetexFileInfo> fileInfo = new ArrayList<>();
+    private List<NdovNetexFileInfo> fileInfo = new ArrayList<>();
     
-    public NetexFileSet(String ndovSourceId, String fileSetId) {
+    public NdovFileSet(String fileSetId) {
         super();
-        this.ndovSourceId = ndovSourceId;
         this.fileSetId = fileSetId;
     }
 
@@ -21,7 +19,7 @@ public class NetexFileSet {
         return fileSetId;
     }
 
-    public List<NetexFileInfo> getFileInfo() {
+    public List<NdovNetexFileInfo> getFileInfo() {
         return fileInfo;
     }
 
@@ -30,17 +28,17 @@ public class NetexFileSet {
      * 
      * @return
      */
-    public NetexFileInfo getNewest() {
+    public NdovNetexFileInfo getNewest() {
         return fileInfo.stream().max(new NewestFileComparator()).get();
     }
     
-    public void addFile(NetexFileInfo info) {
+    public void addFile(NdovNetexFileInfo info) {
         fileInfo.add(info);
     }
     
-    private class NewestFileComparator implements Comparator<NetexFileInfo> {
+    private class NewestFileComparator implements Comparator<NdovNetexFileInfo> {
         @Override
-        public int compare(NetexFileInfo nfi1, NetexFileInfo nfi2) {
+        public int compare(NdovNetexFileInfo nfi1, NdovNetexFileInfo nfi2) {
             return nfi1.getFileName().compareTo(nfi2.getFileName());
         }
     }

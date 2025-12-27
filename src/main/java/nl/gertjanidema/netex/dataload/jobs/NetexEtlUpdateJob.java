@@ -29,22 +29,23 @@ public class NetexEtlUpdateJob {
     private final static String update_netex_network_sql = """
 DELETE FROM netex.st_netex_admin_zone WHERE id='NL:DOVA:TransportAdministrativeZone:OVGD';
 INSERT INTO netex.st_netex_admin_zone(id, name, short_name, file_set_id)
-    VALUES ('NL:DOVA:TransportAdministrativeZone:OVGD', 'Publiek vervoer Groningen Drenthe', 'OVGD', 'Manual');    TRUNCATE TABLE netex.netex_network;
+    VALUES ('NL:DOVA:TransportAdministrativeZone:OVGD', 'Publiek vervoer Groningen Drenthe', 'OVGD', 'Manual');
 DELETE FROM netex.st_netex_network WHERE id = 'NL:DOVA:Network:OVGD';
 INSERT INTO netex.st_netex_network(
     id, from_date, to_date, name, short_name, authority_ref, file_set_id)
     VALUES ('NL:DOVA:Network:OVGD', '2018-04-08', '2026-08-01', 'Publiek vervoer Groningen-Drenthe', 'OVGD', 'DOVA:Authority:OVGD', 'Manual');
+TRUNCATE TABLE netex.netex_network CASCADE;
 INSERT INTO netex.netex_network
     SELECT *, 'NL:DOVA:TransportAdministrativeZone:' || short_name AS administrative_zone
     FROM netex.st_netex_network
     WHERE id LIKE 'NL:%'
 """;
-    
+
     private final static String update_netex_line_sql = """
 UPDATE netex.st_netex_line
     SET responsibility_set_ref = 'NL:QBUZZ:ResponsibilitySet:OVGD'
     WHERE name LIKE 'Buurtbus%' AND responsibility_set_ref = 'QBUZZ:ResponsibilitySet:GD';
-TRUNCATE TABLE netex.netex_line;
+TRUNCATE TABLE netex.netex_line CASCADE;
 INSERT INTO netex.netex_line(id, name, branding_ref, direction_type, transport_mode, public_code, private_code, colour, text_colour, mobility_impaired_access, responsibility_set, product_category, administrative_zone, line_sort)
 SELECT line."id",
     line."name",
@@ -68,7 +69,7 @@ LEFT JOIN netex.st_netex_responsibility_set nrs ON nrs.id = line.responsibility_
 """;
 
     private final static String update_netex_quay_sql = """
-TRUNCATE TABLE netex.netex_quay;
+TRUNCATE TABLE netex.netex_quay CASCADE;
 INSERT INTO netex.netex_quay
 SELECT "id",
     stop_area_id,
@@ -86,16 +87,16 @@ SELECT "id",
     id As point_id
 FROM netex.st_netex_scheduled_stop_point
 """;
-    
+
     private final static String update_netex_route_sql = """
-TRUNCATE TABLE netex.netex_route;
+TRUNCATE TABLE netex.netex_route CASCADE;
 INSERT INTO netex.netex_route ("id", "name", "line_ref", "direction_type")
 SELECT "id", "name", "line_ref", "direction_type"
 FROM netex.st_netex_route
 """;
 
     private final static String update_netex_route_quay_sql = """
-TRUNCATE TABLE netex.netex_route_quay;
+TRUNCATE TABLE netex.netex_route_quay CASCADE;
 WITH route_quay AS (
     SELECT
       line.public_code,
@@ -105,12 +106,13 @@ WITH route_quay AS (
       chb_quay.stop_side_code,
       por.sequence AS sequence,
       COALESCE(psa.stop_place_code, csp.stop_place_code) AS stop_place_code,
-      chb_quay.quay_name,
-      chb_quay.town
+      COALESCE(chb_quay.quay_name, nsp.name) AS quay_name,
+      COALESCE(chb_quay.town, nsp.place) AS town
     FROM netex.st_netex_point_on_route por
     JOIN netex.netex_quay quay ON quay.route_point_ref = por.route_point_ref
     JOIN netex.netex_route route ON route.id = por.route_id
     JOIN netex.netex_line line ON route.line_ref = line.id
+    LEFT JOIN netex.st_netex_scheduled_stop_point nsp ON nsp.route_point_ref = por.route_point_ref
     LEFT JOIN chb.chb_psa psa ON psa.user_stop_owner_code = quay.user_stop_owner_code
         AND psa.user_stop_code = quay.user_stop_code
     LEFT JOIN chb.chb_quay ON chb_quay.quay_code = psa.quay_code
@@ -167,7 +169,7 @@ SELECT rq.public_code AS line_number,
 """;
 
     private final static String update_netex_journey_quay_sql = """
-TRUNCATE TABLE netex.netex_journey_quay;
+TRUNCATE TABLE netex.netex_journey_quay CASCADE;
 WITH route_quay AS (
     SELECT
       line.public_code,
@@ -232,9 +234,9 @@ SELECT rq.public_code AS line_number,
 """;
 
     private final static String update_netex_route_data_sql = """
-TRUNCATE TABLE netex.netex_route_data;
+TRUNCATE TABLE netex.netex_route_data CASCADE;
 INSERT INTO netex.netex_route_data (line_number, route_id, line_ref, direction_type, quay_list, stop_place_list, quay_count)
-SELECT rq.line_number, 
+SELECT rq.line_number,
     rt.id AS route_id,
     rt.line_ref,
     rt.direction_type,
@@ -247,9 +249,9 @@ SELECT rq.line_number,
 """;
 
     private final static String update_netex_route_variant_sql = """
-TRUNCATE TABLE netex.netex_route_variant;
+TRUNCATE TABLE netex.netex_route_variant CASCADE;
 INSERT INTO netex.netex_route_variant (line_number, direction_type, quay_list, stop_place_list, quay_count, line_ref, colour, administrative_zone)
-SELECT nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count, 
+SELECT nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count,
     nrd.line_ref, nl.colour, nl.administrative_zone
 FROM netex.netex_route_data nrd
   LEFT JOIN netex.netex_line nl ON nl.id = nrd.line_ref
@@ -258,12 +260,12 @@ GROUP BY nrd.line_number, nrd.direction_type, nrd.quay_list, nrd.stop_place_list
 UPDATE netex.netex_route AS nr
 SET variant_id = nrv.id
 FROM netex.netex_route_data nrd
-JOIN netex.netex_route_variant nrv ON nrv.quay_list = nrd.quay_list
+JOIN netex.netex_route_variant nrv ON nrv.quay_list = nrd.quay_list AND nrv.line_number = nrd.line_number
 WHERE nrd.route_id = nr.id;
 """;
 
     private final static String update_netex_route_variant_quay_sql = """
-TRUNCATE TABLE netex.netex_route_variant_quay;
+TRUNCATE TABLE netex.netex_route_variant_quay CASCADE;
 INSERT INTO netex.netex_route_variant_quay(
         line_number, variant_id, quay_code, stop_side_code, stop_place_code, quay_index, quay_name, town)
     SELECT DISTINCT nrq.line_number, variant.id, nrq.quay_code, nrq.stop_side_code, nrq.stop_place_code, nrq.quay_index, nrq.quay_name, nrq.town
@@ -271,17 +273,17 @@ INSERT INTO netex.netex_route_variant_quay(
     JOIN netex.netex_route route ON route.variant_id = variant.id
     JOIN netex.netex_route_quay nrq ON nrq.route_id = route.id
 """;
-    
+
     private final static String update_netex_route_variant_data_sql = """
-TRUNCATE TABLE netex.netex_route_variant_data;
+TRUNCATE TABLE netex.netex_route_variant_data CASCADE;
 INSERT INTO netex.netex_route_variant_data (line_number, variant_id, line_ref, direction_type, quay_list, stop_place_list, quay_count)
 SELECT nrd.line_number, nr.variant_id, nrd.line_ref, nrd.direction_type, nrd.quay_list, nrd.stop_place_list, nrd.quay_count
 FROM netex.netex_route_data nrd
 JOIN netex.netex_route nr ON nrd.route_id = nr.id
 """;
-    
+
     private final static String update_netex_line_stop_place_sql = """
-TRUNCATE TABLE netex.netex_line_stop_place;
+TRUNCATE TABLE netex.netex_line_stop_place CASCADE;
 INSERT INTO netex.netex_line_stop_place
 SELECT DISTINCT line.id AS netex_line_id, rq.line_number, rq.stop_place_code, line.administrative_zone
   FROM netex.netex_line line
@@ -291,15 +293,15 @@ SELECT DISTINCT line.id AS netex_line_id, rq.line_number, rq.stop_place_code, li
 """;
 
     private final static String update_netex_links_sql = """
-TRUNCATE TABLE netex.netex_link;
+TRUNCATE TABLE netex.netex_link CASCADE;
 INSERT INTO netex.netex_link
 SELECT DISTINCT rq1.quay_code AS quay_code1, rq1.stop_side_code AS stop_side_code1, rq1.stop_place_code AS stop_place_code1,
     rq2.quay_code AS quay_code2, rq2.stop_side_code AS stop_side_code2, rq2.stop_place_code AS stop_place_code2
 FROM netex.netex_route_quay rq1
 JOIN netex.netex_route_quay rq2 ON rq1.route_id = rq2.route_id AND rq2.quay_index = rq1.quay_index + 1
-WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;        
+WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
 """;
-    
+
     private final EntityManagerFactory entityManagerFactory;
 
     @Inject
@@ -309,7 +311,7 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
     EntityManager entityManager() {
         return entityManagerFactory.createEntityManager();
     }
-    
+
     /**
      * Defines the main batch job for importing.
      *
@@ -354,11 +356,11 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
     }
 
     @SuppressWarnings("static-method")
-    @Bean 
+    @Bean
     TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
-        return new TransactionTemplate(transactionManager);       
+        return new TransactionTemplate(transactionManager);
     }
-    
+
     private Tasklet sqlTasklet(TransactionTemplate transactionTemplate, String query) {
         return new Tasklet() {
 
@@ -382,7 +384,7 @@ WHERE rq1.quay_code IS NOT NULL AND rq2.quay_code IS NOT NULL;
                 }
                 return null;
             }
-            
+
         };
     }
 }

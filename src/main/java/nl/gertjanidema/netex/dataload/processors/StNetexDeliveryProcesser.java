@@ -3,12 +3,14 @@ package nl.gertjanidema.netex.dataload.processors;
 import org.rutebanken.netex.model.CompositeFrame;
 import org.rutebanken.netex.model.PublicationDeliveryStructure;
 import org.rutebanken.netex.model.Version;
+import org.springframework.stereotype.Component;
 
-import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.NdovNetexFileInfo;
 import nl.gertjanidema.netex.dataload.dto.StNetexDelivery;
 
-public class NetexDeliveryProcesser extends AbstractNetexProcessor {
-    public static StNetexDelivery process(PublicationDeliveryStructure delivery, NetexFileInfo fileInfo) {
+@Component
+public class StNetexDeliveryProcesser extends AbstractItemProcessor {
+    public static StNetexDelivery process(PublicationDeliveryStructure delivery, NdovNetexFileInfo fileInfo) {
         var stDelivery = new StNetexDelivery();
         stDelivery.setFileSetId(fileInfo.getFileSetId());
         stDelivery.setFilename(fileInfo.getFileName());
