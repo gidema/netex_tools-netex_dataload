@@ -42,20 +42,14 @@ public class StNetexStopPlaceProcessor extends AbstractItemProcessor implements 
         }
         var quays = stopPlace.getQuays().getQuayRefOrQuay();
         List<StNetexQuay> netexQuays = new ArrayList<>(quays.size());
-        quays.forEach(q -> {
+        for(var q : quays) {
             if (q.getDeclaredType() == Quay.class) {
                 var quay = (Quay)q.getValue();
-                StNetexQuay netexQuay;
-                try {
-                    netexQuay = quayProcessor.process(quay);
-                    netexQuay.setStopPlace(netexStopPlace);
-                    netexQuays.add(netexQuay);
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
+                var netexQuay = quayProcessor.process(quay);
+                netexQuay.setStopPlace(netexStopPlace);
+                netexQuays.add(netexQuay);
             }
-        });
+        }
         netexStopPlace.setQuays(netexQuays);
         return netexStopPlace;
     }

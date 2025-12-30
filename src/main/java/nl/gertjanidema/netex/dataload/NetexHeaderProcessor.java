@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -96,6 +97,9 @@ public class NetexHeaderProcessor {
                     }
                 });
             }
+            if (fileInfo.getVersion() == null) fileInfo.setVersion("no version");
+            if (fileInfo.getStartDate() == null) fileInfo.setStartDate(LocalDateTime.MIN);
+            if (fileInfo.getEndDate() == null) fileInfo.setEndDate(LocalDateTime.MAX);
         }
     
         private void processValidBetween(List<ValidBetween> validBetween) {

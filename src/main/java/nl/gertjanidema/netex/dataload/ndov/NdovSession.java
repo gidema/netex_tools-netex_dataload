@@ -76,7 +76,7 @@ public class NdovSession implements AutoCloseable {
             try {
                 ftpClient.disconnect();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.warn(e.getMessage());
             }
         }
     }

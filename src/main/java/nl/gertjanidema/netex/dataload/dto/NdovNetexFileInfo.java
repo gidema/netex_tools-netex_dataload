@@ -26,6 +26,7 @@ public class NdovNetexFileInfo {
     private Long id;
     private String ndovSourceId;
     private String fileSetId;
+    private Boolean isCurrent;
     @Include
     private String directory;
     @Include

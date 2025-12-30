@@ -2,9 +2,12 @@ package nl.gertjanidema.netex.dataload;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -20,7 +23,6 @@ import nl.gertjanidema.netex.dataload.dto.StNetexDeliveryRepository;
 import nl.gertjanidema.netex.dataload.ndov.NdovFileInfoService;
 import nl.gertjanidema.netex.dataload.ndov.NdovService;
 import nl.gertjanidema.netex.dataload.ndov.NdovSession;
-import nl.gertjanidema.netex.dto.NetexNetworkRepository;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -30,24 +32,25 @@ public class NetexDataload implements Callable<Integer>{
 
     private static Logger LOG = LoggerFactory.getLogger(NetexDataload.class);
     private final static Comparator<NdovNetexFileInfo> FileInfoComparator = Comparator.comparing(NdovNetexFileInfo::getStartDate)
-            .thenComparing(NdovNetexFileInfo::getVersionDate);
+            .thenComparing(NdovNetexFileInfo::getEndDate)
+            .thenComparing(NdovNetexFileInfo::getVersion)
+            .thenComparing(NdovNetexFileInfo::getLastModified);
 
     @Inject NdovService ndovService;
     @Inject NdovFileInfoService fileInfoService;
     @Inject NetexHeaderProcessor netexHeaderProcessor;
     @Inject NetexFileProcessor netexFileProcessor;
     @Inject StNetexDeliveryRepository deliveryRepository;
-    @Inject NetexNetworkRepository networkRepository;
     @Inject NdovNetexFileInfoRepository fileInfoRepository;
     
-    private boolean refreshFiles = false;
+    private boolean refreshFileInfo = false;
 
     @SuppressWarnings("unused")
     private boolean showSql = false;
 
-    @Option(names = {"--refresh-files"}, description = "Refresh files")
-    public void setRefreshFiles(boolean refreshFiles) {
-        this.refreshFiles = refreshFiles;
+    @Option(names = {"--refresh-file-info"}, description = "Refresh files")
+    public void setRefreshFiles(boolean refreshFileInfo) {
+        this.refreshFileInfo = refreshFileInfo;
     }
 
     @Option(names = {"--spring.jpa.show-sql"}, description = "Show SQL")
@@ -57,15 +60,11 @@ public class NetexDataload implements Callable<Integer>{
 
     @Override
     public Integer call() {
-        if (refreshFiles) {
+        if (refreshFileInfo) {
             LOG.info("Refreshing file info");
             refreshFileInfo();
         }
-        try (var session = ndovService.createSession()) {
-            updateData(session);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        updateData();
         return 0;
     }
     
@@ -81,7 +80,7 @@ public class NetexDataload implements Callable<Integer>{
         });
         if (!newFiles.isEmpty()) {
             try (NdovSession session = ndovService.createSession()) {
-                newFiles.forEach(fileInfo -> {;
+                newFiles.forEach(fileInfo -> {
                     netexHeaderProcessor.processHeader(fileInfo, session);
                 });
             } catch (IOException e) {
@@ -91,19 +90,44 @@ public class NetexDataload implements Callable<Integer>{
         fileInfoRepository.saveAll(newFiles);
     }
     
-    private void updateData(NdovSession session) {
+    private void updateData() {
         //Group the file info by fileSet and process each fileSet
         fileInfoRepository.findAll().stream()
-            .forEach(fi -> {
-                if (fi.getImportedAt() == null) {
-                    processFile(fi, session);
-                }
+            .collect(Collectors.groupingBy(fi -> fi.getFileSetId()))
+            .forEach((fileSetId, fileInfoList) -> {
+                processFileSet(fileSetId, fileInfoList);
             });
     }
     
-    private void processFile(NdovNetexFileInfo fileInfo, NdovSession session) {
-        netexFileProcessor.processData(fileInfo, session);
-        fileInfo.setImportedAt(Instant.now());
-        fileInfoRepository.save(fileInfo);
+    private void processFileSet(String fileSetId, List<NdovNetexFileInfo> fileInfoList) {
+        final var fileSet = Set.of("CXX_UBI","DOVA_authorities", "DOVA_epiap",
+                "DOVA_networks", "DOVA_tariffzones");
+        if (!fileSet.contains(fileSetId)) return;
+        var latest = fileInfoList.stream()
+            .filter(fi -> fi.getStartDate().compareTo(LocalDateTime.now()) <= 0)
+            .max(FileInfoComparator)
+            .orElse(null);
+        var currentDelivery = deliveryRepository.findByFileSetId(fileSetId).orElse(null);
+        if (latest != null) {
+            if (currentDelivery == null) {
+                processFile(latest);
+            }
+            else if (!latest.equals(currentDelivery.getFileInfo())) {
+                processFile(latest);
+            }
+        }
+    }
+
+    private void processFile(NdovNetexFileInfo fileInfo) {
+        LOG.info("Updating {}", fileInfo.getFileSetId());
+        try (NdovSession session = ndovService.createSession()) {
+            netexFileProcessor.processData(fileInfo, session);
+            fileInfo.setImportedAt(Instant.now());
+            fileInfo.setIsCurrent(true);
+            fileInfoRepository.save(fileInfo);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 }

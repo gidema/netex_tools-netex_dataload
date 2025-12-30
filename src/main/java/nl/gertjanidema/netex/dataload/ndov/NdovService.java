@@ -61,31 +61,4 @@ public class NdovService {
         ftpClient.enterLocalPassiveMode();
         return new NdovSession(this, ftpClient);
     }
-
-//    public Collection<NdovNetexFileInfo> downloadNetexFiles(Collection<NdovNetexFileInfo> netexFiles) {
-//        return downloadNetexFiles(netexFiles, true);
-//    }
-//    
-//    /**
-//     * Download the requested Netex files and save them to the cache folder.
-//     * @param netexFiles
-//     * @param useCache If true, always download the file. Overwrite the cached file if it exists.
-//     */
-//    public Collection<NdovNetexFileInfo> downloadNetexFiles(Collection<NdovNetexFileInfo> netexFiles, boolean useCache) {
-//        initialize();
-//        netexFiles.forEach(fileInfo -> {
-//            try {
-//                var cachedFile = new File(getNetexTempPath().toFile(), fileInfo.getFileName());
-//                fileInfo.setCachedFile(cachedFile);
-//                if (!cachedFile.exists() || !useCache) {
-//                    File sourceFile = new File(String.format("/netex/%s/%s", fileInfo.getNdovSourceId().toLowerCase(), fileInfo.getFileName()));
-//                    downloadFile(sourceFile , getNetexTempPath());
-//                }
-//            } catch (IOException e) {
-//                // TODO Auto-generated catch block
-//                e.printStackTrace();
-//            }
-//        });
-//        return netexFiles;
-//    }
 }
