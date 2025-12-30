@@ -1,14 +1,19 @@
 package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.TransportAdministrativeZone;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexAdminZone;
 
-public class NetexAdminZoneProcessor extends AbstractNetexProcessor {
+@Component
+public class StNetexAdminZoneProcessor extends AbstractItemProcessor implements ItemProcessor<TransportAdministrativeZone, StNetexAdminZone> {
  
-    public static StNetexAdminZone process(TransportAdministrativeZone adminZone) throws Exception {
+    @Override
+    public StNetexAdminZone process(TransportAdministrativeZone adminZone) throws Exception {
         var netexAdminZone = new StNetexAdminZone();
-        netexAdminZone.setId(adminZone.getId());
+        netexAdminZone.setNetexId(adminZone.getId());
+        netexAdminZone.setVersion(adminZone.getVersion());
         netexAdminZone.setName(toString(adminZone.getName()));
         netexAdminZone.setShortName(toString(adminZone.getShortName()));
         netexAdminZone.setDescription(toString(adminZone.getDescription()));

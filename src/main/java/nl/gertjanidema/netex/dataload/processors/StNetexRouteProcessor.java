@@ -1,14 +1,18 @@
 package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.Route;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexRoute;
 
-public class NetexRouteProcessor extends AbstractNetexProcessor {
+@Component
+public class StNetexRouteProcessor extends AbstractItemProcessor implements ItemProcessor<Route, StNetexRoute> {
  
-    public static StNetexRoute process(Route route) throws Exception {
+    @Override
+    public StNetexRoute process(Route route) throws Exception {
         var netexRoute = new StNetexRoute();
-        netexRoute.setId(route.getId());
+        netexRoute.setNetexId(route.getId());
         netexRoute.setName(route.getName() != null ? toString(route.getName()) : null);
         netexRoute.setLineRef(route.getLineRef().getValue().getRef());
         netexRoute.setDirectionType(route.getDirectionType().toString());

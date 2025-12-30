@@ -1,6 +1,6 @@
 module nl.gertjanidema.netex.dataload {
     exports nl.gertjanidema.netex.dataload;
-    
+
     requires spring.data.jpa;
     requires spring.boot.autoconfigure;
     requires spring.context;
@@ -22,9 +22,16 @@ module nl.gertjanidema.netex.dataload {
     requires org.apache.commons.lang3;
     requires netex.java.model;
     requires jakarta.xml.bind;
+    requires org.hibernate.orm.core;
+    requires info.picocli;
+    requires jakarta.transaction;
+    requires jakarta.cdi;
 
-    opens nl.gertjanidema.netex.dataload to spring.core, spring.beans, spring.context;
+    opens nl.gertjanidema.netex.dataload to spring.core, spring.beans, spring.context, info.picocli;
+    opens nl.gertjanidema.netex.dataload.processors to spring.core, spring.beans, spring.context;
     opens nl.gertjanidema.netex.dataload.ndov to spring.core, spring.beans, spring.context;
     opens nl.gertjanidema.netex.dataload.jobs to spring.core, spring.beans, spring.context;
+    opens nl.gertjanidema.netex.cli to spring.core, spring.beans, spring.context;
     opens nl.gertjanidema.netex.dataload.dto;
+    opens nl.gertjanidema.netex.dto;
 }

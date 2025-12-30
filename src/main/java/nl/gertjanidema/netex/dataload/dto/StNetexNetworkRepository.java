@@ -1,9 +1,9 @@
 package nl.gertjanidema.netex.dataload.dto;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface StNetexNetworkRepository extends CrudRepository<StNetexNetwork, String> {
+public interface StNetexNetworkRepository extends JpaRepository<StNetexNetwork, Long> {
 
-    public void deleteByFileSetId(String fileSetId);
+//    public void deleteByFileSetId(String fileSetId);
 }
 

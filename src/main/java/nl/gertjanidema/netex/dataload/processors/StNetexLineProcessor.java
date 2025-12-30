@@ -2,20 +2,24 @@ package nl.gertjanidema.netex.dataload.processors;
 
 import org.rutebanken.netex.model.LimitationStatusEnumeration;
 import org.rutebanken.netex.model.Line;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import nl.gertjanidema.netex.dataload.dto.StNetexLine;
 
-public class NetexLineProcessor extends AbstractNetexProcessor {
+@Component
+public class StNetexLineProcessor extends AbstractItemProcessor implements ItemProcessor<Line, StNetexLine> {
  
-    public static StNetexLine process(Line line) throws Exception {
-        line.getResponsibilitySetRef();
+    @Override
+    public StNetexLine process(Line line) throws Exception {
         var netexLine = new StNetexLine();
-        netexLine.setId(line.getId());
+        netexLine.setNetexId(line.getId());
+        netexLine.setVersion(line.getVersion());
         netexLine.setResponsibilitySetRef(line.getResponsibilitySetRef());
         netexLine.setName(line.getName() != null ? toString(line.getName()) : null);
         netexLine.setBrandingRef(getBrandingRef(line));
         netexLine.setTransportMode(getTransportMode(line));
-        netexLine.setPublicCode(line.getPublicCode().getValue());
+        netexLine.setPublicCode(getPublicCode(line));
         netexLine.setPrivateCode(getPrivateCode(line));
         var presentation = line.getPresentation();
         if (presentation != null) {
@@ -38,6 +42,11 @@ public class NetexLineProcessor extends AbstractNetexProcessor {
     private static String getTransportMode(Line line) {
         if (line.getTransportMode() == null) return null;
         return line.getTransportMode().value();
+    }
+
+    private static String getPublicCode(Line line) {
+        if (line.getPublicCode() == null) return null;
+        return line.getPublicCode().getValue();
     }
 
     private static String getPrivateCode(Line line) {

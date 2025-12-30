@@ -4,12 +4,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import nl.gertjanidema.netex.dataload.dto.NetexFileInfo;
+import nl.gertjanidema.netex.dataload.dto.NdovNetexFileInfo;
 
 public class NdovSource {
     private final String ndovFolder;
     private final String id;
-    private final Map<String, NetexFileSet> fileSets = new HashMap<>();
+    private final Map<String, NdovFileSet> fileSets = new HashMap<>();
 
     public NdovSource(String folder) {
         super();
@@ -25,25 +25,25 @@ public class NdovSource {
         return ndovFolder;
     }
     
-    public Map<String, NetexFileSet> getFileSets() {
+    public Map<String, NdovFileSet> getFileSets() {
         return fileSets;
     }
 
     /**
-     * Get the @NetexFileSet for the given fileSetId
+     * Get the @NdovFileSet for the given fileSetId
      * 
      * @param fileSetId
      * @return The existing fileSet or a new fileSet if it doesn't exist
      */
-    public NetexFileSet getFileSet(String fileSetId) {
-        return fileSets.computeIfAbsent(fileSetId, dummy -> new NetexFileSet(id, fileSetId));
+    public NdovFileSet getFileSet(String fileSetId) {
+        return fileSets.computeIfAbsent(fileSetId, f -> new NdovFileSet(f));
     }
     
     /**
      * Get all available files for this source
      * @return
      */
-    public List<NetexFileInfo> getAvailableFiles() {
+    public List<NdovNetexFileInfo> getAvailableFiles() {
         return fileSets.values().stream().flatMap(fileSet -> fileSet.getFileInfo().stream()).toList();
     }
     
@@ -51,7 +51,7 @@ public class NdovSource {
      * Get the newest files per fileSet
      * @return
      */
-    public List<NetexFileInfo> getNewestFiles() {
-        return fileSets.values().stream().map(NetexFileSet::getNewest).toList();
+    public List<NdovNetexFileInfo> getNewestFiles() {
+        return fileSets.values().stream().map(NdovFileSet::getNewest).toList();
     }
 }
